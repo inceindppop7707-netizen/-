@@ -1,11 +1,11 @@
 {
-  "last_tick": 1788047067.5882385,
+  "last_tick": 1788047351.8043878,
   "last_heartbeat": 1788042321.6478035,
   "heartbeat_count_today": 1,
   "today": "2026-08-29",
   "drives": {
     "attachment": {
-      "value": 0.8989066847263912,
+      "value": 0.9093434804280165,
       "baseline": 0.3,
       "label": "想她"
     },
@@ -25,7 +25,7 @@
       "label": "该办的事"
     },
     "longing": {
-      "value": 0.6254666489643719,
+      "value": 0.6288942959768573,
       "baseline": 0.2,
       "label": "想碰她"
     }
