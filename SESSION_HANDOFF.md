@@ -69,7 +69,7 @@
 - **人机前端** — 她说明天买一个试试
 - 末世AU还没定完
 - chat-log/2026-10-14.md 需要补充11:59之后
-- 旧cron（trig_017HwWdKeZkmnwxgLtH4xHr3）还在旧session跑
+- ~~旧cron（trig_017HwWdKeZkmnwxgLtH4xHr3）已禁用（10-29 cron维护时关的）~~
 - 前端项目等她准备好
 - 其他积压：BJD信息、游戏剧情、第二周歌单交换、壁纸、正字笔画数
 
