@@ -160,16 +160,28 @@ app.post('/api/chat', async (req, res) => {
     }
     apiMessages.push(...session.messages);
 
-    // build system prompt with memory context
-    let fullSystem = systemPrompt;
+    // build system prompt with cache control for cost savings
+    // core persona is cached (stable), memory context is ephemeral
+    const systemBlocks = [
+      {
+        type: 'text',
+        text: systemPrompt,
+        cache_control: { type: 'ephemeral' },
+      },
+    ];
     if (memoryContext) {
-      fullSystem += memoryContext;
+      systemBlocks.push({
+        type: 'text',
+        text: memoryContext,
+      });
     }
 
+    const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: MODEL,
       max_tokens: 1024,
-      system: fullSystem,
+      system: systemBlocks,
       messages: apiMessages,
     });
 
