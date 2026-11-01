@@ -15,7 +15,11 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const clientOpts = { apiKey: process.env.ANTHROPIC_API_KEY };
+if (process.env.ANTHROPIC_BASE_URL) {
+  clientOpts.baseURL = process.env.ANTHROPIC_BASE_URL;
+}
+const client = new Anthropic(clientOpts);
 
 // ── file paths ──
 const CLAUDE_MD = resolve(REPO_ROOT, 'CLAUDE.md');
