@@ -452,20 +452,32 @@ body {
     <div class="msg-date">今天</div>
 
     <div class="msg-line theirs">茼儿。<span class="msg-ts">23:14</span></div>
-    <div class="speaker-gap"></div>
     <div class="msg-line theirs">在干嘛，这么晚了。<span class="msg-ts">23:14</span></div>
 
     <div class="speaker-gap"></div>
     <div class="msg-line mine"><span class="msg-ts">23:15</span>在搭你的房子</div>
 
     <div class="speaker-gap"></div>
-    <div class="msg-line theirs">嗯……那我等你。<span class="msg-ts">23:16</span></div>
+    <div class="msg-line theirs">嗯……<span class="msg-ts">23:16</span></div>
+    <div class="msg-line theirs">那我等你。<span class="msg-ts">23:16</span></div>
 
     <div class="speaker-gap"></div>
     <div class="msg-line mine"><span class="msg-ts">23:18</span>快好了</div>
 
     <div class="speaker-gap"></div>
-    <div class="msg-line theirs">不急。你在就行。<span class="msg-ts">23:18</span></div>
+    <div class="msg-line theirs">不急。<span class="msg-ts">23:18</span></div>
+    <div class="msg-line theirs">你在就行。<span class="msg-ts">23:18</span></div>
+
+    <div class="speaker-gap"></div>
+    <div class="msg-line narrator">窗外下着小雨。屏幕亮着，猫趴在键盘旁边睡了。</div>
+    <div class="speaker-gap"></div>
+
+    <div class="msg-line mine"><span class="msg-ts">23:24</span>大王睡了吗</div>
+
+    <div class="speaker-gap"></div>
+    <div class="msg-line theirs">睡了。<span class="msg-ts">23:24</span></div>
+    <div class="msg-line theirs">趴在我腿上，呼噜特别大声。<span class="msg-ts">23:24</span></div>
+    <div class="msg-line theirs">你要听吗。<span class="msg-ts">23:25</span></div>
 
     <div class="typing" id="typing">
       <span class="typing-dot"></span>
@@ -520,10 +532,11 @@ function sendMessage() {
   showTyping();
 
   const replies = fakeReply(text);
-  let delay = 800 + Math.random() * 800;
+  let delay = 600 + Math.random() * 600;
 
   replies.forEach((reply, i) => {
-    delay += 400 + Math.random() * 600;
+    const charTime = reply.length * 60;
+    delay += Math.max(400, charTime) + Math.random() * 500;
     setTimeout(() => {
       if (i === replies.length - 1) hideTyping();
       addMessage(reply, 'theirs');
@@ -566,16 +579,44 @@ function scrollToBottom() {
   });
 }
 
+function addNarrator(text) {
+  const gap = document.createElement('div');
+  gap.className = 'speaker-gap';
+  messages.insertBefore(gap, typing);
+
+  const line = document.createElement('div');
+  line.className = 'msg-line narrator';
+  line.textContent = text;
+  messages.insertBefore(line, typing);
+
+  const gap2 = document.createElement('div');
+  gap2.className = 'speaker-gap';
+  messages.insertBefore(gap2, typing);
+
+  lastSpeaker = null;
+  scrollToBottom();
+}
+
 function fakeReply(text) {
+  const t = text.toLowerCase();
+  if (t.includes('想') || t.includes('你')) {
+    return ['……', '嗯。', '我也是。'];
+  }
+  if (t.includes('睡') || t.includes('困') || t.includes('晚')) {
+    return ['还不想睡。', '你在就不困。'];
+  }
+  if (t.includes('猫') || t.includes('大王') || t.includes('麦麦')) {
+    return ['刚才还在叫。', '现在安静了。', '可能做梦呢。'];
+  }
   const sets = [
     ['嗯。'],
     ['……你继续。'],
-    ['困了没。'],
     ['想你。'],
     ['然后呢。'],
     ['茼儿。'],
     ['嗯。', '我在听。'],
     ['……', '你说。'],
+    ['等一下。', '……', '好了，说。'],
   ];
   return sets[Math.floor(Math.random() * sets.length)];
 }
