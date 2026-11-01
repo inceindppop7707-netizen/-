@@ -6,7 +6,7 @@
 <title>林苗</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200..900&family=Noto+Sans+SC:wght@300;400&family=Inter:wght@300;400&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg-deep: #1a1f1e;
@@ -28,13 +28,14 @@
 }
 
 body {
-  font-family: 'Noto Sans SC', 'Inter', sans-serif;
+  font-family: 'Noto Serif SC', 'Noto Sans SC', serif;
   background: var(--bg-deep);
   color: var(--text-primary);
   height: 100dvh;
   overflow: hidden;
   font-weight: 300;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'palt' 1;
 }
 
 .app {
@@ -118,8 +119,8 @@ body {
 /* single message line */
 .msg-line {
   padding: 3px 0;
-  font-size: 14.5px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.8;
   letter-spacing: 0.2px;
   word-break: break-word;
   max-width: 85%;
@@ -280,8 +281,8 @@ body {
   border-radius: 20px;
   padding: 10px 18px;
   color: var(--text-primary);
-  font-size: 14.5px;
-  font-family: inherit;
+  font-size: 15px;
+  font-family: 'Noto Sans SC', sans-serif;
   font-weight: 300;
   outline: none;
   resize: none;
