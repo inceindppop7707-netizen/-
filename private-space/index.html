@@ -505,6 +505,13 @@ const messages = document.getElementById('messages');
 const sendBtn = document.getElementById('sendBtn');
 const typing = document.getElementById('typing');
 
+// API config — set to your server URL, empty string = same origin
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? `http://${window.location.hostname}:3000`
+  : '';
+const SESSION_ID = 'main';
+let useAPI = true;
+
 let lastSpeaker = null;
 let replyQueue = [];
 
@@ -540,9 +547,57 @@ function sendMessage() {
 
   showTyping();
 
-  const replies = fakeReply(text);
-  let delay = 800 + Math.random() * 800;
+  if (useAPI) {
+    fetchReply(text);
+  } else {
+    const replies = fakeReply(text);
+    queueReplies(replies);
+  }
+}
 
+async function fetchReply(text) {
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: SESSION_ID, message: text }),
+    });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    const parts = data.parts || [];
+    if (parts.length === 0) {
+      hideTyping();
+      return;
+    }
+    queueParts(parts);
+  } catch (err) {
+    console.warn('API failed, falling back to fake reply:', err.message);
+    useAPI = false;
+    const replies = fakeReply(text);
+    queueReplies(replies);
+  }
+}
+
+function queueParts(parts) {
+  let delay = 300;
+  parts.forEach((part, i) => {
+    const charTime = part.text.length * 80;
+    delay += Math.max(1200, charTime) + Math.random() * 800;
+    const id = setTimeout(() => {
+      replyQueue = replyQueue.filter(x => x !== id);
+      if (i === parts.length - 1) hideTyping();
+      if (part.type === 'narrator') {
+        addNarrator(part.text);
+      } else {
+        addMessage(part.text, 'theirs');
+      }
+    }, delay);
+    replyQueue.push(id);
+  });
+}
+
+function queueReplies(replies) {
+  let delay = 800 + Math.random() * 800;
   replies.forEach((reply, i) => {
     const charTime = reply.length * 80;
     delay += Math.max(1200, charTime) + Math.random() * 800;
