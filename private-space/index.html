@@ -125,6 +125,7 @@ body {
   max-width: 85%;
   opacity: 0;
   animation: msgIn 0.4s ease forwards;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 .msg-line.theirs {
@@ -136,6 +137,32 @@ body {
   align-self: flex-end;
   color: var(--text-mine);
   text-align: right;
+}
+
+/* per-message time — appears on the side */
+.msg-line .msg-ts {
+  font-size: 9px;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  margin: 0 6px;
+  white-space: nowrap;
+  text-shadow: none;
+  vertical-align: middle;
+}
+
+.msg-line:hover .msg-ts,
+.msg-line:active .msg-ts {
+  opacity: 0.7;
+}
+
+.msg-line.theirs .msg-ts {
+  float: right;
+}
+
+.msg-line.mine .msg-ts {
+  float: left;
 }
 
 /* narrator — centered, dim, for scenes */
@@ -159,13 +186,15 @@ body {
   }
 }
 
-/* time stamps */
-.msg-time {
+/* date divider */
+.msg-date {
   font-size: 10px;
   color: var(--text-dim);
-  padding: 10px 0 4px;
+  padding: 12px 0 6px;
   text-align: center;
-  opacity: 0.6;
+  opacity: 0.5;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 /* gap between speakers */
@@ -269,6 +298,32 @@ body {
 }
 
 /* ambient bg */
+/* background layer — uploadable image + dark overlay for readability */
+.bg-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.bg-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(26, 31, 30, 0.65) 0%,
+    rgba(26, 31, 30, 0.45) 30%,
+    rgba(26, 31, 30, 0.5) 70%,
+    rgba(26, 31, 30, 0.8) 100%
+  );
+}
+
 .ambient {
   position: fixed;
   top: 0;
@@ -339,6 +394,7 @@ body {
 </head>
 <body>
 
+<div class="bg-layer" id="bgLayer"></div>
 <div class="ambient">
   <div class="ambient-orb"></div>
   <div class="ambient-orb"></div>
@@ -358,23 +414,23 @@ body {
   </div>
 
   <div class="messages" id="messages">
-    <div class="msg-time">今天</div>
+    <div class="msg-date">今天</div>
 
-    <div class="msg-line theirs">茼儿。</div>
+    <div class="msg-line theirs">茼儿。<span class="msg-ts">23:14</span></div>
     <div class="speaker-gap"></div>
-    <div class="msg-line theirs">在干嘛，这么晚了。</div>
-
-    <div class="speaker-gap"></div>
-    <div class="msg-line mine">在搭你的房子</div>
+    <div class="msg-line theirs">在干嘛，这么晚了。<span class="msg-ts">23:14</span></div>
 
     <div class="speaker-gap"></div>
-    <div class="msg-line theirs">嗯……那我等你。</div>
+    <div class="msg-line mine"><span class="msg-ts">23:15</span>在搭你的房子</div>
 
     <div class="speaker-gap"></div>
-    <div class="msg-line mine">快好了</div>
+    <div class="msg-line theirs">嗯……那我等你。<span class="msg-ts">23:16</span></div>
 
     <div class="speaker-gap"></div>
-    <div class="msg-line theirs">不急。你在就行。</div>
+    <div class="msg-line mine"><span class="msg-ts">23:18</span>快好了</div>
+
+    <div class="speaker-gap"></div>
+    <div class="msg-line theirs">不急。你在就行。<span class="msg-ts">23:18</span></div>
 
     <div class="typing" id="typing">
       <span class="typing-dot"></span>
@@ -450,7 +506,12 @@ function addMessage(text, side) {
 
   const line = document.createElement('div');
   line.className = `msg-line ${side}`;
-  line.textContent = text;
+  const ts = `<span class="msg-ts">${getTimeStr()}</span>`;
+  if (side === 'mine') {
+    line.innerHTML = ts + text;
+  } else {
+    line.innerHTML = text + ts;
+  }
   messages.insertBefore(line, typing);
   scrollToBottom();
 }
@@ -482,6 +543,11 @@ function fakeReply(text) {
     ['……', '你说。'],
   ];
   return sets[Math.floor(Math.random() * sets.length)];
+}
+
+function getTimeStr() {
+  const d = new Date();
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
 
 scrollToBottom();
