@@ -541,11 +541,11 @@ function sendMessage() {
   showTyping();
 
   const replies = fakeReply(text);
-  let delay = 600 + Math.random() * 600;
+  let delay = 800 + Math.random() * 800;
 
   replies.forEach((reply, i) => {
-    const charTime = reply.length * 60;
-    delay += Math.max(400, charTime) + Math.random() * 500;
+    const charTime = reply.length * 80;
+    delay += Math.max(1200, charTime) + Math.random() * 800;
     const id = setTimeout(() => {
       replyQueue = replyQueue.filter(x => x !== id);
       if (i === replies.length - 1) hideTyping();
