@@ -15,11 +15,35 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-const clientOpts = { apiKey: process.env.ANTHROPIC_API_KEY };
-if (process.env.ANTHROPIC_BASE_URL) {
-  clientOpts.baseURL = process.env.ANTHROPIC_BASE_URL;
+// ── API client (hot-swappable) ──
+const SETTINGS_FILE = resolve(DB_DIR, 'api-settings.json');
+const ADMIN_PASS = process.env.ADMIN_PASS || 'linmiao';
+
+function loadApiSettings() {
+  const settings = {
+    apiKey: process.env.ANTHROPIC_API_KEY || '',
+    baseURL: process.env.ANTHROPIC_BASE_URL || '',
+    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
+  };
+  if (existsSync(SETTINGS_FILE)) {
+    try {
+      const saved = JSON.parse(readFileSync(SETTINGS_FILE, 'utf-8'));
+      if (saved.apiKey) settings.apiKey = saved.apiKey;
+      if (saved.baseURL) settings.baseURL = saved.baseURL;
+      if (saved.model) settings.model = saved.model;
+    } catch {}
+  }
+  return settings;
 }
-const client = new Anthropic(clientOpts);
+
+function createClient(settings) {
+  const opts = { apiKey: settings.apiKey };
+  if (settings.baseURL) opts.baseURL = settings.baseURL;
+  return new Anthropic(opts);
+}
+
+let apiSettings = loadApiSettings();
+let client = createClient(apiSettings);
 
 // ── file paths ──
 const CLAUDE_MD = resolve(REPO_ROOT, 'CLAUDE.md');
@@ -180,10 +204,8 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
-
     const response = await client.messages.create({
-      model: MODEL,
+      model: apiSettings.model,
       max_tokens: 1024,
       system: systemBlocks,
       messages: apiMessages,
@@ -239,6 +261,40 @@ app.post('/api/memory', async (req, res) => {
     console.error('Memory error:', err.message);
     res.status(500).json({ error: 'internal error' });
   }
+});
+
+// ── settings endpoint (password protected) ──
+function checkAdmin(req, res) {
+  const pass = req.headers['x-admin-pass'] || req.body?.password;
+  if (pass !== ADMIN_PASS) {
+    res.status(401).json({ error: 'wrong password' });
+    return false;
+  }
+  return true;
+}
+
+app.get('/api/settings', (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  res.json({
+    baseURL: apiSettings.baseURL,
+    model: apiSettings.model,
+    hasKey: !!apiSettings.apiKey,
+  });
+});
+
+app.post('/api/settings', (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  const { apiKey, baseURL, model } = req.body;
+  if (apiKey !== undefined) apiSettings.apiKey = apiKey;
+  if (baseURL !== undefined) apiSettings.baseURL = baseURL;
+  if (model !== undefined) apiSettings.model = model;
+  client = createClient(apiSettings);
+  writeFileSync(SETTINGS_FILE, JSON.stringify({
+    apiKey: apiSettings.apiKey,
+    baseURL: apiSettings.baseURL,
+    model: apiSettings.model,
+  }, null, 2));
+  res.json({ ok: true, model: apiSettings.model, baseURL: apiSettings.baseURL });
 });
 
 // ── health check ──

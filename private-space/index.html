@@ -262,6 +262,119 @@ body {
   height: 14px;
 }
 
+/* settings button */
+.settings-btn {
+  position: absolute;
+  top: 16px;
+  right: 60px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(26, 31, 30, 0.5);
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  transition: opacity 0.2s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.settings-btn:hover {
+  color: var(--text-secondary);
+}
+
+.settings-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* settings panel */
+.settings-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+}
+
+.settings-overlay.show {
+  display: flex;
+}
+
+.settings-panel {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 90%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-panel h3 {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.settings-panel label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-panel input, .settings-panel select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+}
+
+.settings-panel input:focus, .settings-panel select:focus {
+  border-color: rgba(122, 158, 142, 0.3);
+}
+
+.settings-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.settings-btns button {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.btn-cancel {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-save {
+  background: var(--accent);
+  color: var(--bg-deep);
+}
+
 /* input area */
 .input-area {
   padding: 10px 24px 24px;
@@ -433,6 +546,9 @@ body {
 </div>
 
 <div class="app">
+  <button class="settings-btn" onclick="toggleSettings()" title="设置">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+  </button>
   <button class="bg-upload-btn" onclick="document.getElementById('bgInput').click()" title="换背景">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
   </button>
@@ -495,6 +611,32 @@ body {
           <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
         </svg>
       </button>
+    </div>
+  </div>
+</div>
+
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)toggleSettings()">
+  <div class="settings-panel">
+    <h3>API 设置</h3>
+    <label>
+      密码
+      <input type="password" id="setPass" placeholder="管理密码">
+    </label>
+    <label>
+      API Key
+      <input type="password" id="setKey" placeholder="sk-ant-...">
+    </label>
+    <label>
+      API 地址（中转站填这里，官方留空）
+      <input type="text" id="setURL" placeholder="https://api.anthropic.com">
+    </label>
+    <label>
+      模型
+      <input type="text" id="setModel" placeholder="claude-sonnet-4-20250514">
+    </label>
+    <div class="settings-btns">
+      <button class="btn-cancel" onclick="toggleSettings()">取消</button>
+      <button class="btn-save" onclick="saveSettings()">保存</button>
     </div>
   </div>
 </div>
@@ -701,6 +843,41 @@ document.getElementById('bgInput').addEventListener('change', function(e) {
   };
   reader.readAsDataURL(file);
 });
+
+// ── settings ──
+function toggleSettings() {
+  const overlay = document.getElementById('settingsOverlay');
+  overlay.classList.toggle('show');
+}
+
+async function saveSettings() {
+  const pass = document.getElementById('setPass').value;
+  const apiKey = document.getElementById('setKey').value;
+  const baseURL = document.getElementById('setURL').value;
+  const model = document.getElementById('setModel').value;
+
+  if (!pass) { alert('请输入管理密码'); return; }
+
+  const body = { password: pass };
+  if (apiKey) body.apiKey = apiKey;
+  if (baseURL !== undefined) body.baseURL = baseURL;
+  if (model) body.model = model;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || '保存失败'); return; }
+    toggleSettings();
+    useAPI = true;
+    addNarrator('API 设置已更新');
+  } catch (err) {
+    alert('连接失败: ' + err.message);
+  }
+}
 
 scrollToBottom();
 </script>
