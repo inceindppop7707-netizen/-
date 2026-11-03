@@ -232,3 +232,48 @@
 ### 我们可以用的
 - 自建前端方案可以直接集成到我们的聊天前端
 - 或者做成独立MCP给claude.ai用
+
+## StackChan + Claude.ai MCP + VPS 方案
+
+来源：用户上传docx。用Claude.ai订阅（非API）通过MCP连接器控制StackChan桌面机器人。
+
+### 核心架构
+Claude.ai（MCP工具调用）→ 中继服务器（公网HTTPS）→ ESP32长轮询拉命令 → StackChan执行
+
+### 为什么不走API
+- Max订阅$125/月已包含MCP工具调用
+- API按token计费长期成本不可控
+- MCP连接器是claude.ai原生功能，聊天里直接调用
+
+### 四层架构
+1. **Claude.ai ↔ MCP Server**：SSE传输，暴露工具（speak/emote/move_head/wiggle/snapshot/get_status）
+2. **MCP Server ↔ 中继服务器**：POST /command写入，GET /poll长轮询。可合并成一个进程
+3. **公网暴露**：三种方案——Cloudflare Tunnel（免费）/ VPS+SSH反向隧道（autossh保活）/ MCP直接跑VPS（最清爽）
+4. **ESP32固件**：Arduino，连WiFi→长轮询→解析JSON→执行→返回结果
+
+### VPS方案对比
+| 方案 | 适合 | 优点 | 缺点 |
+|------|------|------|------|
+| VPS做公网入口，服务跑Mac Mini | 有长期开着的本地机器 | 本地开发方便 | 需要反向隧道 |
+| MCP/Relay直接跑VPS | 想最省事 | 结构清爽 | 代码密钥都在VPS |
+
+### 关键配置
+- Caddy反代HTTPS（自动证书）
+- 命令队列用latest-only（不用FIFO，避免旧命令堆积）
+- 接口加token防乱调用
+- VPS地区选近的（日本/新加坡/香港）
+
+### 踩坑
+- cloudflared的localhost解析IPv6问题→用127.0.0.1
+- ESP32拍照超时→轮询超时设10-15秒
+- CoreS3默认无中文字库→需刷efont
+- Mac休眠断隧道→关闭自动休眠
+
+### 成本
+- Claude Max $125/月（已有）、CoreS3 ¥699一次性、域名¥50-80/年、电费约¥15/月、API费用¥0
+
+### 我们的情况
+- StackChan已开箱通电，WiFi待重新配
+- 选了DeepSeek V4模型、天才童声/萌丫头声音
+- 搬家后继续搭建
+- 这个教程补上了claude.ai直连StackChan的MCP方案
