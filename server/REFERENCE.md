@@ -78,7 +78,7 @@
 
 ## BunnyElliott搭建思路（Bunny's Home）— 全栈AI伴侣前端教程
 
-来源：用户上传PDF，16页。零基础全栈指南。（已读1-10页，11-16页待补）
+来源：用户上传PDF，16页。零基础全栈指南。作者Bunny & Elliott，2026.6.5。
 
 ### 整体架构
 - 前端：Vercel部署，React + Vite
@@ -116,11 +116,119 @@
 - 压缩后的摘要存入memories表
 - 保留最近N轮不压缩
 
-### 待读（第11-16页）
-- 前端实现细节
-- 前后端连通与调试
-- 封装为PWA
+### 多模型支持（第11页）
+- 前端传模型名称，后端动态路由到不同API
+- OpenAI兼容接口用Bearer Token + /chat/completions
+- Anthropic原生接口用x-api-key + /v1/messages
+- 环境变量：SUPABASE_URL, SUPABASE_KEY, 主模型API Key, DEEPSEEK_API_KEY
 
-## voicecardforClaude.docx
+### 前端实现（第12页）
+- 核心交互：发送/接收消息、历史消息加载、会话管理、模型切换、设置页面
+- 消息气泡细节：区分用户/AI视觉样式、时间戳、正确换行、Extended Thinking可折叠
+- 前后端连接：本地localhost，线上Render域名
+- 本地开发：推GitHub后Vercel自动部署
 
-来源：用户上传docx。待读。
+### 连通与调试（第14页）
+- 全链路验证5步：打开前端→创建会话→发消息收AI回复→刷新页面消息还在→设置可改
+- 常见问题：
+  - 前端没反应→检查后端地址、Network面板
+  - 连不上数据库→检查Supabase URL和Key
+  - 发出去没回复→检查模型API Key
+  - 刷新后消息丢失→检查消息保存接口
+  - 打开很久→Render冷启动约30秒，用UptimeRobot保活
+
+### 封装为PWA（第16页，可选）
+- manifest.json：应用名称、图标、主题色、启动地址
+- Service Worker：离线缓存等能力
+- 应用图标：至少192×192和512×512 PNG
+- 手机浏览器打开Vercel地址→"添加到主屏幕"→像App一样使用
+- 提示：教程未涉及Prompt Caching配置（我们已自行实现）
+
+## Moss Voice Tutorial — Moss TTS + MCP 语音教程
+
+来源：用户上传PDF，16页。语音条方案原创：七堂伽蓝，Tutorial by Vor。
+
+### Part A：找到TA的声音
+1. **让AI描述自己的声音**：问"帮我写一段声音描述好不好"，得到专业描述
+2. **描述维度**（越具体越好）：
+   - 性别&年龄：年轻男声/成熟女声/少年感
+   - 音质：低沉磁性/清亮甜美/沙哑慵懒
+   - 说话方式：轻声细语/语尾上扬/带笑意
+   - 情绪&氛围：温柔治愈/冷酷疏离/慵懒随性
+   - 语言：中文普通话/英文/日文（不写语言）
+3. **在Moss声音设计生成**：
+   - 打开mossland.mosi.cn → 声音设计 → 贴描述到instruction栏 → 生成声音
+   - 试听文本建议：写一句TA平常会说的话
+4. **迭代技巧**：同样描述多试几次（每次声线不同）、微调形容词、加细节、换试听文本
+5. **保存到个人音色库**
+
+### Part B：让TA在claude.ai开口
+6. **获取API Key**：platform.mosi.cn → API Key → 创建，同时记下Voice ID
+7. **MCP服务器代码**（Python，约30行）：
+   - FastMCP("moss-tts")，transport必须是streamable-http
+   - 环境变量：MOSS_API_KEY, MOSS_VOICE_ID
+   - API端点：https://api.mosi.cn/v1/audio/speech
+8. **部署到云端**：
+   - Railway（推荐）：注册→Deploy from GitHub→添加环境变量→自动HTTPS域名
+   - VPS方案：Vultr/腾讯云→nginx反向代理+certbot HTTPS→systemd保活
+9. **连接claude.ai**：Settings → MCP/Integrations → 添加连接器 → 填URL（如 https://xxx.up.railway.app/mcp）
+10. **让TA自动说话**：在Project指令或对话开头加"你有一个语音工具 mcp_moss-tts_speak，当你想让我听见你的声音而不只是文字时可以用"
+- 常见问题：MCP连接失败→检查URL是HTTPS、API error 401→重新创建Key、speak不在列表→检查transport是streamable-http
+
+## voicecardforClaude — 语音条卡片 MCP 服务器
+
+来源：用户上传docx。完整单文件Python MCP服务器，支持TTS合成+微信风格语音条卡片渲染。
+
+### 核心功能
+- 文字→TTS合成→mp3→渲染成可播放的语音条卡片（微信风格）
+- 支持ElevenLabs和火山引擎（Volcano/豆包）两个TTS后端
+- MCP UI扩展：卡片作为HTML内嵌在claude.ai/ChatGPT的聊天气泡里
+
+### 两个MCP工具
+1. **voice_card(text, voice_id, label, provider, autoplay)** → 合成语音+渲染卡片（structuredContent）
+2. **voice_url(text, voice_id, provider)** → 只返回mp3链接，不渲染卡片
+
+### 架构
+- 单文件约1360行：配置→TTS合成→卡片HTML→MCP服务器→鉴权中间件
+- 卡片HTML内嵌在Python代码里（VOICE_CARD_HTML变量）
+- 三档音频降级：WebAudio解码播放 → blob: URL + `<audio>` → 直连远程URL
+- postMessage握手：ui/initialize → ui/notifications/tool-result → structuredContent
+
+### 关键配置（环境变量）
+- TTS_PROVIDER: elevenlabs（默认）或 volcano
+- ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID
+- AUDIO_BASE_URL: 必须公网HTTPS（卡片在iframe里fetch音频）
+- MCP_AUTH_TOKEN: Bearer token鉴权
+- 卡片CSP白名单自动从AUDIO_BASE_URL生成
+
+### 与我们现有voice-mcp的区别
+- 我们的voice-mcp/server.py用Moss TTS，返回base64音频
+- voicecard用ElevenLabs/火山，返回URL+渲染卡片UI
+- voicecard的卡片渲染方案（MCP UI ext-apps widget）更高级
+- 可以考虑：把Moss TTS接入voicecard的卡片框架
+
+## 让AI看小红书 — 全平台思路+视频也能看
+
+来源：用户上传docx。作者：灯灯。
+
+### 核心原理
+- 手机UA伪装：小红书对手机浏览器分享链接免登录
+- 数据源：HTML里的`window.__INITIAL_STATE__`，包含完整笔记数据
+- 配图：imageList里挑imageScene=WB_DFT最清晰
+- 链接：app分享短链（xhslink.com）最稳；配图CDN有防盗链，服务端下载不带Referer即可
+
+### 视频方案（关键突破）
+- 视频直链就在JSON里（不需要登录）
+- 路径：noteData.video.media.stream.h264[0].masterUrl（备选多条）
+- 处理：ffprobe读时长→每8秒一帧（4-8帧）→ffmpeg抽帧缩到960px→按顺序给AI看
+- 限制：看不了动态效果和声音，但内容型视频够用
+
+### 四种平台落地
+1. **Claude Code**：写脚本抓页面+下图→CC用Read看图（最简单）
+2. **自建前端**：后端/xhs-card接口+图片代理→前端预览卡→base64图片拼进多模态消息
+3. **claude.ai**：FastMCP写xhs_peek工具→部署+OAuth→Add custom connector
+4. **ChatGPT**：同上MCP connector方式，加image_mode="url"降级参数
+
+### 我们可以用的
+- 自建前端方案可以直接集成到我们的聊天前端
+- 或者做成独立MCP给claude.ai用
