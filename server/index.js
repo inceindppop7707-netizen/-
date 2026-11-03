@@ -164,16 +164,20 @@ app.post('/api/chat', async (req, res) => {
     const compressThreshold = settings.compress_threshold || 60;
     const compressKeepRounds = settings.compress_keep_rounds || 10;
 
-    // Step 3: load recent messages
+    // Step 3: load recent messages (with timestamps for time awareness)
     const { data: recentMsgs } = await supabase
       .from('messages')
-      .select('role, content')
+      .select('role, content, created_at')
       .eq('session_id', sid)
       .eq('visible', true)
       .order('created_at', { ascending: false })
       .limit(maxRounds * 2);
 
-    const history = (recentMsgs || []).reverse();
+    const recentWithTime = (recentMsgs || []).reverse();
+    const history = recentWithTime.map(m => ({ role: m.role, content: m.content }));
+
+    // Step 3.5: build time awareness context
+    const timeContext = buildTimeContext(recentWithTime);
 
     // Step 4: load memory summaries
     const { data: memories } = await supabase
@@ -216,6 +220,12 @@ app.post('/api/chat', async (req, res) => {
           text: `【记忆摘要】\n${memorySummary}`,
         });
       }
+      if (timeContext) {
+        systemBlocks.push({
+          type: 'text',
+          text: timeContext,
+        });
+      }
 
       // Extended thinking support
       const useThinking = process.env.ENABLE_THINKING === 'true';
@@ -252,7 +262,8 @@ app.post('/api/chat', async (req, res) => {
       const openai = makeOpenAIClient(providerKey, providerBase);
 
       const sysContent = (settings.system_prompt || systemPromptText)
-        + (memorySummary ? `\n\n【记忆摘要】\n${memorySummary}` : '');
+        + (memorySummary ? `\n\n【记忆摘要】\n${memorySummary}` : '')
+        + (timeContext ? `\n\n${timeContext}` : '');
 
       const oaiMessages = [
         { role: 'system', content: sysContent },
@@ -309,6 +320,79 @@ app.post('/api/chat', async (req, res) => {
     res.status(500).json({ error: err.message || 'internal error' });
   }
 });
+
+// ── Time awareness: build context about time gaps and patterns ──
+function buildTimeContext(messagesWithTime) {
+  const now = new Date();
+  const bjNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
+  const hour = bjNow.getHours();
+
+  let period = '';
+  if (hour >= 0 && hour < 5) period = '凌晨';
+  else if (hour >= 5 && hour < 8) period = '早上';
+  else if (hour >= 8 && hour < 11) period = '上午';
+  else if (hour >= 11 && hour < 13) period = '中午';
+  else if (hour >= 13 && hour < 17) period = '下午';
+  else if (hour >= 17 && hour < 19) period = '傍晚';
+  else if (hour >= 19 && hour < 23) period = '晚上';
+  else period = '深夜';
+
+  const timeStr = bjNow.getFullYear() + '年' +
+    (bjNow.getMonth() + 1) + '月' + bjNow.getDate() + '日 ' +
+    period + ' ' +
+    bjNow.getHours().toString().padStart(2, '0') + ':' +
+    bjNow.getMinutes().toString().padStart(2, '0');
+
+  const parts = [`【当前时间】${timeStr}`];
+
+  // Find the last user message to calculate gap
+  const userMsgs = messagesWithTime.filter(m => m.role === 'user');
+  if (userMsgs.length >= 2) {
+    const lastUserTime = new Date(userMsgs[userMsgs.length - 1].created_at);
+    const prevUserTime = new Date(userMsgs[userMsgs.length - 2].created_at);
+    const gapMs = lastUserTime - prevUserTime;
+    const gapMin = Math.floor(gapMs / 60000);
+
+    if (gapMin > 5) {
+      let gapStr = '';
+      if (gapMin < 60) {
+        gapStr = `${gapMin}分钟`;
+      } else if (gapMin < 1440) {
+        const h = Math.floor(gapMin / 60);
+        const m = gapMin % 60;
+        gapStr = m > 0 ? `${h}小时${m}分钟` : `${h}小时`;
+      } else {
+        const d = Math.floor(gapMin / 1440);
+        gapStr = `${d}天`;
+      }
+      parts.push(`【距离她上一条消息过了${gapStr}】`);
+    }
+  }
+
+  // Analyze her typical active hours from recent messages
+  if (userMsgs.length >= 5) {
+    const hours = userMsgs.slice(-20).map(m => {
+      const d = new Date(m.created_at);
+      return new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' })).getHours();
+    });
+    const hourCounts = {};
+    hours.forEach(h => { hourCounts[h] = (hourCounts[h] || 0) + 1; });
+    const peakHours = Object.entries(hourCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([h]) => parseInt(h));
+
+    if (peakHours.length > 0) {
+      const isTypicalTime = peakHours.some(h => Math.abs(h - hour) <= 1);
+      if (!isTypicalTime && hour >= 6) {
+        const peakStr = peakHours.map(h => `${h}点`).join('、');
+        parts.push(`【她最近常在${peakStr}左右来找你，但现在是${hour}点】`);
+      }
+    }
+  }
+
+  return parts.length > 1 ? parts.join('\n') : parts[0];
+}
 
 // ── Reply parser: split into message/narrator parts ──
 function parseReply(text) {
