@@ -560,6 +560,32 @@ app.post('/api/runtime-config', (req, res) => {
   res.json({ ok: true, config: { ...getRuntimeConfig(), api_key: updates.api_key ? '***' + updates.api_key.slice(-6) : undefined } });
 });
 
+// ── Model list (from relay /v1/models) ──
+app.get('/api/models', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  const rc = getRuntimeConfig();
+  const apiKey = rc.api_key || process.env.ANTHROPIC_API_KEY || '';
+  const baseURL = (rc.api_base_url || process.env.ANTHROPIC_BASE_URL || '').replace(/\/+$/, '');
+  if (!baseURL || !apiKey) {
+    return res.status(400).json({ error: 'API地址或Key未配置' });
+  }
+  try {
+    const resp = await fetch(`${baseURL}/v1/models`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => '');
+      return res.status(resp.status).json({ error: `中转站返回 ${resp.status}`, detail: txt.slice(0, 500) });
+    }
+    const body = await resp.json();
+    const models = (body.data || []).map(m => ({ id: m.id, owned_by: m.owned_by || '' }));
+    res.json({ models });
+  } catch (e) {
+    res.status(502).json({ error: '无法连接中转站', detail: e.message });
+  }
+});
+
 // ══════════════════════════════════════
 //  Sticker APIs
 // ══════════════════════════════════════

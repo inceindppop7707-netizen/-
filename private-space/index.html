@@ -927,16 +927,22 @@ body {
       <input type="password" id="setPass" placeholder="管理密码" onchange="loadRuntimeConfig()">
     </label>
     <label>
-      API Key（中转站的key）
-      <input type="password" id="setKey" placeholder="sk-...（留空不改）">
+      API Key
+      <input type="password" id="setKey" placeholder="sk-...">
     </label>
     <label>
       API 地址
       <input type="text" id="setURL" placeholder="https://api.blanka.cc">
     </label>
+    <div class="panel-btns" style="margin:8px 0 4px">
+      <button class="btn-save" id="btnConnect" onclick="connectAPI()" style="width:100%">连接</button>
+    </div>
+    <div id="connectStatus" style="font-size:12px;opacity:.7;margin-bottom:6px"></div>
     <label>
-      模型名（从中转站复制）
-      <input type="text" id="setModel" placeholder="[特价纯血]claude-opus-4-6-thinking">
+      模型
+      <select id="setModel" style="width:100%;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;font-size:13px">
+        <option value="">填入地址和Key后点连接</option>
+      </select>
     </label>
     <div class="panel-btns">
       <button class="btn-cancel" onclick="toggleSettings()">取消</button>
@@ -1544,36 +1550,113 @@ async function loadRuntimeConfig() {
     });
     if (!res.ok) return;
     const cfg = await res.json();
-    if (cfg.model) document.getElementById('setModel').value = cfg.model;
     if (cfg.api_base_url) document.getElementById('setURL').value = cfg.api_base_url;
-    if (cfg.api_key) document.getElementById('setKey').placeholder = cfg.api_key;
+    if (cfg.api_key) document.getElementById('setKey').placeholder = cfg.api_key + '（已保存）';
+    document.getElementById('connectStatus').textContent = '已加载当前配置';
+    await loadModelList(cfg.model);
   } catch {}
+}
+
+async function connectAPI() {
+  const pass = document.getElementById('setPass').value;
+  const apiKey = document.getElementById('setKey').value;
+  const baseURL = document.getElementById('setURL').value;
+  const status = document.getElementById('connectStatus');
+  const btn = document.getElementById('btnConnect');
+  if (!pass) { status.textContent = '请先输入密码'; return; }
+  if (!baseURL) { status.textContent = '请填入API地址'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '连接中...';
+  status.textContent = '';
+
+  try {
+    const body = { password: pass };
+    if (apiKey) body.api_key = apiKey;
+    if (baseURL) body.api_base_url = baseURL;
+    const saveRes = await fetch(`${API_BASE}/api/runtime-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pass': pass },
+      body: JSON.stringify(body),
+    });
+    if (!saveRes.ok) {
+      const err = await saveRes.json().catch(() => ({}));
+      status.textContent = '保存失败: ' + (err.error || saveRes.status);
+      return;
+    }
+    await loadModelList();
+    status.textContent = '已连接';
+  } catch (e) {
+    status.textContent = '连接失败: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '连接';
+  }
+}
+
+async function loadModelList(currentModel) {
+  const pass = document.getElementById('setPass').value;
+  if (!pass) return;
+  const sel = document.getElementById('setModel');
+  const status = document.getElementById('connectStatus');
+  sel.innerHTML = '<option value="">加载模型列表...</option>';
+  try {
+    const res = await fetch(`${API_BASE}/api/models`, {
+      headers: { 'x-admin-pass': pass },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      sel.innerHTML = `<option value="">加载失败</option>`;
+      status.textContent = err.error || '加载模型失败';
+      return;
+    }
+    const { models } = await res.json();
+    sel.innerHTML = '';
+    if (!models || !models.length) {
+      sel.innerHTML = '<option value="">无可用模型</option>';
+      return;
+    }
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.id;
+      sel.appendChild(opt);
+    });
+    status.textContent = `已加载 ${models.length} 个模型`;
+    if (currentModel) {
+      const match = [...sel.options].find(o => o.value === currentModel);
+      if (match) sel.value = currentModel;
+      else {
+        const opt = document.createElement('option');
+        opt.value = currentModel;
+        opt.textContent = currentModel + '（当前）';
+        sel.prepend(opt);
+        sel.value = currentModel;
+      }
+    }
+  } catch (e) {
+    sel.innerHTML = '<option value="">网络错误</option>';
+  }
 }
 
 async function saveSettings() {
   const pass = document.getElementById('setPass').value;
-  const apiKey = document.getElementById('setKey').value;
-  const baseURL = document.getElementById('setURL').value;
   const model = document.getElementById('setModel').value;
 
   if (!pass) return;
-
-  const body = { password: pass };
-  if (apiKey) body.api_key = apiKey;
-  if (baseURL !== undefined) body.api_base_url = baseURL;
-  if (model) body.model = model;
+  if (!model) { addNarrator('请先连接并选择模型'); return; }
 
   try {
     const res = await fetch(`${API_BASE}/api/runtime-config`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-pass': pass },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ password: pass, model }),
     });
     const data = await res.json();
     if (!res.ok) { addNarrator('保存失败: ' + (data.error || '')); return; }
     toggleSettings();
     useAPI = true;
-    addNarrator('API 设置已更新 — 下条消息生效');
+    addNarrator('已切换模型: ' + model);
   } catch { addNarrator('保存失败，检查网络'); }
 }
 
