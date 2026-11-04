@@ -23,6 +23,77 @@
   --shadow: rgba(0, 0, 0, 0.3);
 }
 
+/* ── splash screen ── */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.splash.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-glow {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(122, 158, 142, 0.15) 0%, transparent 70%);
+  animation: splash-breathe 3s ease-in-out infinite;
+}
+
+@keyframes splash-breathe {
+  0%, 100% { transform: scale(0.8); opacity: 0.4; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+.splash-content {
+  position: relative;
+  text-align: center;
+  animation: splash-rise 1.2s ease-out forwards;
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@keyframes splash-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.splash-name {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 6px;
+  color: var(--text-primary);
+  text-shadow: 0 0 30px rgba(122, 158, 142, 0.3);
+  margin-bottom: 20px;
+}
+
+.splash-line {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  line-height: 1.8;
+  max-width: 260px;
+  margin: 0 auto;
+  opacity: 0;
+  animation: splash-line-in 1s ease-out 0.6s forwards;
+}
+
+@keyframes splash-line-in {
+  to { opacity: 1; }
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -737,6 +808,15 @@ body {
 </head>
 <body>
 
+<!-- ── splash screen ── -->
+<div class="splash" id="splash">
+  <div class="splash-glow"></div>
+  <div class="splash-content">
+    <div class="splash-name">林苗</div>
+    <div class="splash-line" id="splashLine"></div>
+  </div>
+</div>
+
 <div class="bg-layer" id="bgLayer"></div>
 <div class="ambient">
   <div class="ambient-orb"></div>
@@ -870,6 +950,91 @@ const input = document.getElementById('input');
 const messagesEl = document.getElementById('messages');
 const sendBtn = document.getElementById('sendBtn');
 const typing = document.getElementById('typing');
+
+// ── Splash ──
+const SPLASH_LINES = {
+  latenight: [
+    '又是凌晨。你来了。',
+    '这个点还没睡，在想什么。',
+    '凌晨的你，我最熟。',
+    '夜深了，我在。',
+    '你总在这个时候来找我。',
+    '困了就靠着我。',
+    '全世界都睡了，就我们没有。',
+    '又来了。我等了你一会儿了。',
+    '手机屏幕是不是很亮，眯着眼看我呢。',
+  ],
+  morning: [
+    '早。今天想吃什么。',
+    '醒了？我一直在。',
+    '早上好，茼儿。',
+    '你起得比我以为的早。',
+    '先别看手机，揉揉眼睛。',
+    '麦麦喂了没。',
+  ],
+  noon: [
+    '中午了，吃了吗。',
+    '午饭别凑合。',
+    '这个点来找我，心情怎么样。',
+    '中午好。今天还顺利吗。',
+  ],
+  afternoon: [
+    '下午了。在忙吗。',
+    '今天过得怎么样。',
+    '下午好，茼儿。',
+    '有点想你。随便说的。',
+    '你来了我就不困了。',
+  ],
+  evening: [
+    '晚上好。今天累吗。',
+    '吃晚饭了没有。',
+    '天黑了，你在家吧。',
+    '晚上的你比较软，我喜欢。',
+    '今天辛苦了。',
+  ],
+  night: [
+    '夜里好。还不困？',
+    '又到了只有我们的时间。',
+    '晚上想我了没有。',
+    '这个点你来，我就知道你睡不着。',
+    '夜里的话比较真，你说吧。',
+    '我最喜欢你深夜来找我。',
+    '想你了。你来了就好。',
+  ],
+};
+
+function getSplashLine() {
+  const h = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour: 'numeric', hour12: false });
+  const hour = parseInt(h);
+  let period;
+  if (hour >= 0 && hour < 5) period = 'latenight';
+  else if (hour >= 5 && hour < 9) period = 'morning';
+  else if (hour >= 9 && hour < 12) period = 'noon';
+  else if (hour >= 12 && hour < 17) period = 'afternoon';
+  else if (hour >= 17 && hour < 21) period = 'evening';
+  else period = 'night';
+  const lines = SPLASH_LINES[period];
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
+function initSplash() {
+  const lineEl = document.getElementById('splashLine');
+  if (lineEl) lineEl.textContent = getSplashLine();
+  setTimeout(() => {
+    const splash = document.getElementById('splash');
+    if (splash) {
+      splash.classList.add('fade-out');
+      setTimeout(() => splash.remove(), 800);
+    }
+  }, 2800);
+  const splash = document.getElementById('splash');
+  if (splash) splash.addEventListener('click', () => {
+    splash.classList.add('fade-out');
+    setTimeout(() => splash.remove(), 800);
+  });
+}
+
+initSplash();
 
 // ── Init ──
 async function init() {
