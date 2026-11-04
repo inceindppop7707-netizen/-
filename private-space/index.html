@@ -805,7 +805,7 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0.6;
 }
 
 @media (min-width: 521px) {
@@ -1562,215 +1562,178 @@ async function saveSettings() {
   } catch {}
 }
 
-// ── Rain on glass (WebGL shader) ──
+// ── Rain on glass ──
 (function rainOnGlass() {
   const canvas = document.getElementById('rainCanvas');
   if (!canvas) return;
-  const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
-  if (!gl) return;
+  const ctx = canvas.getContext('2d');
+  let W, H;
 
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
-    canvas.style.width = window.innerWidth + 'px';
-    canvas.style.height = window.innerHeight + 'px';
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
   }
   resize();
   window.addEventListener('resize', resize);
 
-  const vsrc = `attribute vec2 a_pos;void main(){gl_Position=vec4(a_pos,0,1);}`;
+  function rnd(a, b) { return a + Math.random() * (b - a); }
 
-  const fsrc = `
-precision highp float;
-uniform float u_time;
-uniform vec2 u_res;
+  // --- tiny mist drops stuck on glass, don't move ---
+  const mist = [];
+  function seedMist() {
+    mist.length = 0;
+    const count = Math.floor(W * H / 800);
+    for (let i = 0; i < count; i++) {
+      mist.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.3, 1.2), o: rnd(0.08, 0.2) });
+    }
+  }
+  seedMist();
+  window.addEventListener('resize', seedMist);
 
-float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float hash1(float n){return fract(sin(n)*43758.5453);}
+  // --- water streams that slide down the glass ---
+  const streams = [];
+  const maxStreams = 12;
 
-// smooth noise
-float noise(vec2 p){
-  vec2 i=floor(p),f=fract(p);
-  f=f*f*(3.0-2.0*f);
-  float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
-  return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
-}
-
-// single raindrop on glass — returns (distortion.xy, brightness, mask)
-vec4 drop(vec2 uv, vec2 center, float radius, float t) {
-  vec2 d = uv - center;
-  float dist = length(d);
-  if (dist > radius) return vec4(0);
-
-  float edge = smoothstep(radius, radius * 0.2, dist);
-  float sphere = sqrt(max(0.0, 1.0 - (dist/radius)*(dist/radius)));
-
-  // refraction — offset based on sphere normal
-  vec2 refract = d / radius * sphere * 0.6;
-
-  // highlight — upper-left specular
-  float spec = smoothstep(0.6, 0.95, dot(normalize(d + vec2(radius*0.35, radius*0.4)), vec2(-0.5, -0.7)));
-  spec *= sphere;
-
-  // caustic — bright ring near bottom
-  float ring = smoothstep(0.75, 0.85, dist/radius) * smoothstep(0.98, 0.88, dist/radius);
-  ring *= smoothstep(-0.1, 0.3, -d.y/radius);
-
-  // edge darkening
-  float edgeDark = smoothstep(0.5, 1.0, dist/radius) * 0.15;
-
-  float brightness = spec * 0.7 + ring * 0.25 - edgeDark;
-
-  return vec4(refract, brightness, edge);
-}
-
-// trail left by a sliding drop
-float trail(vec2 uv, vec2 top, vec2 bot, float w) {
-  vec2 ab = bot - top;
-  float t = clamp(dot(uv - top, ab) / dot(ab, ab), 0.0, 1.0);
-  vec2 closest = top + ab * t;
-  float d = length(uv - closest);
-  float taper = (1.0 - t) * 0.8 + 0.2;
-  return smoothstep(w * taper, 0.0, d) * 0.3 * (1.0 - t * 0.7);
-}
-
-void main() {
-  vec2 uv = gl_FragCoord.xy / u_res;
-  float aspect = u_res.x / u_res.y;
-  vec2 st = vec2(uv.x * aspect, uv.y);
-
-  float t = u_time;
-  vec2 totalRefract = vec2(0);
-  float totalBright = 0.0;
-  float totalMask = 0.0;
-  float totalTrail = 0.0;
-
-  // --- large stuck drops (slowly accumulate and slide) ---
-  for (int i = 0; i < 18; i++) {
-    float fi = float(i);
-    float seed = hash1(fi * 7.13);
-    float seed2 = hash1(fi * 13.71);
-
-    float radius = 0.015 + seed * 0.025;
-    float cx = seed * aspect * 0.95 + 0.02;
-
-    // drop sticks, then after a while starts sliding down
-    float stickTime = 4.0 + seed2 * 12.0;
-    float cycleLen = stickTime + 8.0 + seed * 6.0;
-    float phase = mod(t + fi * 3.7, cycleLen);
-    float startY = 0.3 + seed2 * 0.65;
-    float cy;
-    float slideProgress = 0.0;
-    if (phase < stickTime) {
-      cy = startY;
-    } else {
-      slideProgress = (phase - stickTime) / (cycleLen - stickTime);
-      float acc = slideProgress * slideProgress;
-      cy = startY - acc * (startY + 0.1);
-      // wobble sideways while sliding
-      cx += sin(slideProgress * 12.0 + seed * 6.28) * 0.004;
+  class Stream {
+    constructor() { this.reset(true); }
+    reset(init) {
+      this.x = rnd(10, W - 10);
+      this.y = init ? rnd(-H * 0.3, H * 0.6) : rnd(-60, -10);
+      this.width = rnd(1, 2.8);
+      this.speed = rnd(0.15, 0.5);
+      this.wobbleAmp = rnd(0.2, 0.8);
+      this.wobbleFreq = rnd(0.01, 0.03);
+      this.opacity = rnd(0.04, 0.1);
+      this.path = [{ x: this.x, y: this.y }];
+      this.maxPath = Math.floor(rnd(60, 200));
+      this.age = 0;
+      this.pause = 0;
+      this.pauseChance = rnd(0.002, 0.008);
     }
 
-    vec4 dr = drop(st, vec2(cx, cy), radius, t);
-    totalRefract += dr.xy * dr.w;
-    totalBright += dr.z * dr.w;
-    totalMask = max(totalMask, dr.w);
+    update() {
+      this.age++;
+      if (this.pause > 0) { this.pause--; return; }
+      if (Math.random() < this.pauseChance) {
+        this.pause = Math.floor(rnd(30, 120));
+        return;
+      }
 
-    // trail behind sliding drops
-    if (slideProgress > 0.05) {
-      float trailTop = startY;
-      float trailW = radius * 0.35;
-      totalTrail += trail(st, vec2(cx, trailTop), vec2(cx, cy), trailW);
+      this.y += this.speed;
+      this.x += Math.sin(this.y * this.wobbleFreq) * this.wobbleAmp;
+      this.x += rnd(-0.15, 0.15);
+
+      this.path.push({ x: this.x, y: this.y });
+      if (this.path.length > this.maxPath) this.path.shift();
+
+      if (this.y > H + 30) this.reset(false);
+    }
+
+    draw() {
+      if (this.path.length < 3) return;
+      ctx.beginPath();
+      ctx.moveTo(this.path[0].x, this.path[0].y);
+      for (let i = 1; i < this.path.length - 1; i++) {
+        const cx = (this.path[i].x + this.path[i + 1].x) / 2;
+        const cy = (this.path[i].y + this.path[i + 1].y) / 2;
+        ctx.quadraticCurveTo(this.path[i].x, this.path[i].y, cx, cy);
+      }
+      ctx.strokeStyle = `rgba(190, 205, 220, ${this.opacity})`;
+      ctx.lineWidth = this.width;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // small bead at the bottom of the stream
+      const tip = this.path[this.path.length - 1];
+      const br = this.width * 1.5;
+      ctx.beginPath();
+      ctx.arc(tip.x, tip.y, br, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200, 215, 230, ${this.opacity * 1.5})`;
+      ctx.fill();
     }
   }
 
-  // --- small static drops (like mist on cold glass) ---
-  for (int i = 0; i < 35; i++) {
-    float fi = float(i);
-    float sx = hash1(fi * 3.17) * aspect;
-    float sy = hash1(fi * 5.93);
-    float sr = 0.003 + hash1(fi * 9.41) * 0.008;
-    float blink = smoothstep(-0.2, 0.2, sin(t * 0.3 + fi * 2.1));
+  for (let i = 0; i < maxStreams; i++) streams.push(new Stream());
 
-    vec4 dr = drop(st, vec2(sx, sy), sr, t);
-    totalRefract += dr.xy * dr.w * blink * 0.5;
-    totalBright += dr.z * dr.w * blink * 0.4;
+  // --- still drops: larger ones that sit on glass and occasionally slide ---
+  const drops = [];
+  const maxDrops = 25;
+
+  class StillDrop {
+    constructor() { this.reset(true); }
+    reset(init) {
+      this.x = rnd(5, W - 5);
+      this.y = init ? rnd(0, H) : rnd(-20, H * 0.2);
+      this.r = rnd(2, 6);
+      this.opacity = rnd(0.12, 0.25);
+      this.life = rnd(300, 900);
+      this.age = 0;
+    }
+
+    update() {
+      this.age++;
+      if (this.age > this.life) this.reset(false);
+    }
+
+    draw() {
+      const fade = this.age > this.life - 60 ? (this.life - this.age) / 60 : Math.min(this.age / 30, 1);
+      const o = this.opacity * fade;
+      if (o <= 0) return;
+
+      // soft circular drop with subtle gradient
+      const g = ctx.createRadialGradient(this.x - this.r * 0.2, this.y - this.r * 0.2, 0, this.x, this.y, this.r);
+      g.addColorStop(0, `rgba(210, 220, 232, ${o * 0.6})`);
+      g.addColorStop(0.5, `rgba(190, 205, 220, ${o * 0.25})`);
+      g.addColorStop(1, `rgba(170, 185, 200, ${o * 0.05})`);
+
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+
+      // thin edge
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(200, 215, 230, ${o * 0.4})`;
+      ctx.lineWidth = 0.3;
+      ctx.stroke();
+
+      // tiny highlight
+      ctx.beginPath();
+      ctx.arc(this.x - this.r * 0.3, this.y - this.r * 0.3, this.r * 0.15, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(235, 242, 250, ${o * 0.6})`;
+      ctx.fill();
+    }
   }
 
-  // --- occasional fresh large drop splatting ---
-  for (int i = 0; i < 5; i++) {
-    float fi = float(i);
-    float cycle = 6.0 + hash1(fi * 11.3) * 8.0;
-    float phase = mod(t + fi * 4.3, cycle);
-    float life = min(phase / 0.3, 1.0);
-    float fade = smoothstep(cycle, cycle - 2.0, phase);
-    float splat = life * fade;
+  for (let i = 0; i < maxDrops; i++) drops.push(new StillDrop());
 
-    float sx = hash1(fi * 17.3 + 0.5) * aspect;
-    float sy = hash1(fi * 23.7 + 0.5) * 0.8 + 0.1;
-    float sr = (0.012 + hash1(fi * 31.1) * 0.02) * splat;
-
-    vec4 dr = drop(st, vec2(sx, sy), sr, t);
-    totalRefract += dr.xy * dr.w;
-    totalBright += dr.z * dr.w;
-  }
-
-  // --- foggy condensation layer ---
-  float fog = noise(st * 8.0 + t * 0.02) * 0.03;
-  fog += noise(st * 20.0 - t * 0.01) * 0.015;
-
-  // combine
-  float alpha = totalMask * 0.4 + totalTrail + fog;
-  float bright = totalBright + totalTrail * 0.5;
-
-  // refraction tint — simulate distorted background showing through drops
-  vec3 refractColor = vec3(0.7, 0.76, 0.84) + totalRefract.x * 0.3 + totalRefract.y * 0.2;
-
-  vec3 col = refractColor * (0.05 + bright * 0.6);
-  col += vec3(0.75, 0.82, 0.9) * totalTrail * 0.4;
-  col += vec3(0.6, 0.66, 0.72) * fog;
-
-  // specular highlights pop white
-  col += vec3(1.0) * max(0.0, totalBright - 0.15) * 0.8;
-
-  gl_FragColor = vec4(col, alpha);
-}`;
-
-  function compile(type, src) {
-    const s = gl.createShader(type);
-    gl.shaderSource(s, src);
-    gl.compileShader(s);
-    return s;
-  }
-  const prog = gl.createProgram();
-  gl.attachShader(prog, compile(gl.VERTEX_SHADER, vsrc));
-  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fsrc));
-  gl.linkProgram(prog);
-  gl.useProgram(prog);
-
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-  const aPos = gl.getAttribLocation(prog, 'a_pos');
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-  const uTime = gl.getUniformLocation(prog, 'u_time');
-  const uRes = gl.getUniformLocation(prog, 'u_res');
-
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-  const t0 = performance.now();
   function tick() {
-    const elapsed = (performance.now() - t0) / 1000;
-    gl.uniform1f(uTime, elapsed);
-    gl.uniform2f(uRes, canvas.width, canvas.height);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    ctx.clearRect(0, 0, W, H);
+
+    // mist layer
+    for (const m of mist) {
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(190, 205, 220, ${m.o})`;
+      ctx.fill();
+    }
+
+    // streams
+    for (const s of streams) {
+      s.update();
+      s.draw();
+    }
+
+    // still drops
+    for (const d of drops) {
+      d.update();
+      d.draw();
+    }
+
     requestAnimationFrame(tick);
   }
+
   tick();
 })();
 
