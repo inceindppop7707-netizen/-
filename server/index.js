@@ -198,7 +198,7 @@ app.post('/api/chat', async (req, res) => {
     // Decide which model/provider to use
     const modelName = reqModel || settings.model || process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
     const useOpenAICompat = process.env.USE_OPENAI_COMPAT === 'true';
-    const isAnthropic = !useOpenAICompat && modelName.startsWith('claude');
+    const isAnthropic = !useOpenAICompat && (modelName.startsWith('claude') || modelName.includes('claude'));
 
     let assistantText = '';
 
