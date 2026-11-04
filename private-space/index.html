@@ -924,19 +924,19 @@ body {
     <h3>API 设置</h3>
     <label>
       密码
-      <input type="password" id="setPass" placeholder="管理密码">
+      <input type="password" id="setPass" placeholder="管理密码" onchange="loadRuntimeConfig()">
     </label>
     <label>
-      API Key
-      <input type="password" id="setKey" placeholder="sk-ant-...">
+      API Key（中转站的key）
+      <input type="password" id="setKey" placeholder="sk-...（留空不改）">
     </label>
     <label>
-      API 地址（中转站填这里，官方留空）
-      <input type="text" id="setURL" placeholder="https://api.anthropic.com">
+      API 地址
+      <input type="text" id="setURL" placeholder="https://api.blanka.cc">
     </label>
     <label>
-      模型
-      <input type="text" id="setModel" placeholder="claude-sonnet-4-20250514">
+      模型名（从中转站复制）
+      <input type="text" id="setModel" placeholder="[特价纯血]claude-opus-4-6-thinking">
     </label>
     <div class="panel-btns">
       <button class="btn-cancel" onclick="toggleSettings()">取消</button>
@@ -1535,6 +1535,21 @@ function toggleSettings() {
   document.getElementById('settingsOverlay').classList.toggle('show');
 }
 
+async function loadRuntimeConfig() {
+  const pass = document.getElementById('setPass').value;
+  if (!pass) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/runtime-config`, {
+      headers: { 'x-admin-pass': pass },
+    });
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (cfg.model) document.getElementById('setModel').value = cfg.model;
+    if (cfg.api_base_url) document.getElementById('setURL').value = cfg.api_base_url;
+    if (cfg.api_key) document.getElementById('setKey').placeholder = cfg.api_key;
+  } catch {}
+}
+
 async function saveSettings() {
   const pass = document.getElementById('setPass').value;
   const apiKey = document.getElementById('setKey').value;
@@ -1544,22 +1559,22 @@ async function saveSettings() {
   if (!pass) return;
 
   const body = { password: pass };
-  if (apiKey) body.apiKey = apiKey;
-  if (baseURL !== undefined) body.baseURL = baseURL;
+  if (apiKey) body.api_key = apiKey;
+  if (baseURL !== undefined) body.api_base_url = baseURL;
   if (model) body.model = model;
 
   try {
-    const res = await fetch(`${API_BASE}/api/settings`, {
+    const res = await fetch(`${API_BASE}/api/runtime-config`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-pass': pass },
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (!res.ok) return;
+    if (!res.ok) { addNarrator('保存失败: ' + (data.error || '')); return; }
     toggleSettings();
     useAPI = true;
-    addNarrator('API 设置已更新');
-  } catch {}
+    addNarrator('API 设置已更新 — 下条消息生效');
+  } catch { addNarrator('保存失败，检查网络'); }
 }
 
 // ── Rain on glass ──
