@@ -1572,40 +1572,32 @@ async function saveSettings() {
 
   function rnd(a, b) { return a + Math.random() * (b - a); }
 
-  // mist: dense tiny condensation drops on cold glass
   const mist = [];
   function seedMist() {
     mist.length = 0;
-    const count = Math.min(Math.floor(W * H / 400), 2000);
+    const count = Math.min(Math.floor(W * H / 500), 1800);
     for (let i = 0; i < count; i++) {
-      mist.push({
-        x: rnd(0, W), y: rnd(0, H),
-        r: rnd(0.3, 1.8),
-        o: rnd(0.04, 0.16),
-        flicker: rnd(0.8, 1.2)
-      });
+      mist.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.4, 2.2), o: rnd(0.06, 0.22) });
     }
   }
 
-  // larger drops
   const drops = [];
 
   class Drop {
     constructor(init) { this.reset(init); }
     reset(init) {
       this.x = rnd(10, W - 10);
-      this.y = init ? rnd(10, H - 10) : rnd(-80, -5);
-      this.r = rnd(3, 18);
+      this.y = init ? rnd(10, H - 10) : rnd(-60, -5);
+      this.r = rnd(4, 20);
       this.stuck = true;
-      this.stickTime = rnd(120, 800);
+      this.stickTime = rnd(80, 600);
       this.age = 0;
       this.vy = 0;
       this.vx = 0;
-      this.wander = rnd(-0.08, 0.08);
+      this.wander = rnd(-0.06, 0.06);
       this.trail = [];
-      this.opacity = rnd(0.55, 1);
-      this.squash = rnd(0.88, 1.0);
-      this.highlight = rnd(0, Math.PI * 2);
+      this.opacity = rnd(0.6, 1);
+      this.seed = Math.random() * 100;
     }
 
     update() {
@@ -1613,30 +1605,28 @@ async function saveSettings() {
       if (this.stuck) {
         if (this.age > this.stickTime) {
           this.stuck = false;
-          this.vy = 0.08 + this.r * 0.012;
+          this.vy = 0.06 + this.r * 0.01;
         }
         return;
       }
 
-      this.trail.push({ x: this.x, y: this.y, r: this.r });
-      if (this.trail.length > 120) this.trail.shift();
+      this.trail.push({ x: this.x, y: this.y, r: this.r * 0.8 });
+      if (this.trail.length > 100) this.trail.shift();
 
-      this.vy += 0.005 + this.r * 0.0006;
+      this.vy += 0.004 + this.r * 0.0005;
       this.vy *= 0.99;
       this.vx += this.wander * (Math.random() - 0.48);
-      this.vx *= 0.86;
-      if (Math.random() < 0.03) this.wander = rnd(-0.12, 0.12);
-      if (Math.random() < 0.004 && this.vy > 0.25) this.vy *= 0.08;
+      this.vx *= 0.88;
+      if (Math.random() < 0.025) this.wander = rnd(-0.1, 0.1);
+      if (Math.random() < 0.005 && this.vy > 0.2) { this.vy *= 0.06; this.stuck = true; this.stickTime = rnd(30, 200); this.age = 0; }
 
       this.x += this.vx;
       this.y += this.vy;
 
-      // absorb nearby mist drops as it passes
       for (let i = mist.length - 1; i >= 0; i--) {
-        const m = mist[i];
-        const dx = m.x - this.x, dy = m.y - this.y;
-        if (dx * dx + dy * dy < (this.r + 4) * (this.r + 4)) {
-          this.r = Math.min(22, this.r + m.r * 0.02);
+        const m = mist[i], dx = m.x - this.x, dy = m.y - this.y;
+        if (dx * dx + dy * dy < (this.r + 5) * (this.r + 5)) {
+          this.r = Math.min(24, this.r + m.r * 0.015);
           mist.splice(i, 1);
         }
       }
@@ -1645,7 +1635,7 @@ async function saveSettings() {
     }
   }
 
-  for (let i = 0; i < 26; i++) drops.push(new Drop(true));
+  for (let i = 0; i < 40; i++) drops.push(new Drop(true));
 
   function resize() {
     W = canvas.width = document.documentElement.clientWidth || window.innerWidth || 400;
@@ -1655,108 +1645,114 @@ async function saveSettings() {
   resize();
   window.addEventListener('resize', resize);
 
+  function dropPath(r, stretch) {
+    const s = 1 + stretch * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -r);
+    ctx.bezierCurveTo(r * 0.7, -r * 0.7, r, r * 0.1 * s, r * 0.55, r * 0.8 * s);
+    ctx.bezierCurveTo(r * 0.25, r * 1.1 * s, -r * 0.25, r * 1.1 * s, -r * 0.55, r * 0.8 * s);
+    ctx.bezierCurveTo(-r, r * 0.1 * s, -r * 0.7, -r * 0.7, 0, -r);
+    ctx.closePath();
+  }
+
   function drawDrop(d) {
-    const { x, y, r, opacity: o, squash } = d;
+    const { x, y, r, opacity: o } = d;
+    const speed = Math.sqrt(d.vx * d.vx + d.vy * d.vy);
+    const stretch = Math.min(speed * 0.5, 0.8);
 
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(1, squash);
 
-    // shadow underneath the drop (on the glass surface)
+    // soft glow on glass
     ctx.beginPath();
-    ctx.ellipse(r * 0.08, r * 0.15, r * 1.05, r * 0.6, 0, 0, Math.PI * 2);
-    const sh = ctx.createRadialGradient(r * 0.08, r * 0.15, r * 0.2, r * 0.08, r * 0.15, r * 1.05);
-    sh.addColorStop(0, `rgba(0, 4, 10, ${0.12 * o})`);
-    sh.addColorStop(0.5, `rgba(0, 4, 10, ${0.06 * o})`);
-    sh.addColorStop(1, 'rgba(0, 4, 10, 0)');
-    ctx.fillStyle = sh;
+    ctx.arc(0, 0, r * 2, 0, Math.PI * 2);
+    const glow = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 2);
+    glow.addColorStop(0, `rgba(140, 170, 200, ${0.08 * o})`);
+    glow.addColorStop(1, 'rgba(140, 170, 200, 0)');
+    ctx.fillStyle = glow;
     ctx.fill();
 
-    // body: transparent center, bright refracting edge
-    const body = ctx.createRadialGradient(0, r * 0.05, 0, 0, 0, r);
-    body.addColorStop(0, `rgba(180, 200, 220, ${0.06 * o})`);
-    body.addColorStop(0.3, `rgba(185, 205, 225, ${0.1 * o})`);
-    body.addColorStop(0.55, `rgba(195, 215, 235, ${0.18 * o})`);
-    body.addColorStop(0.75, `rgba(210, 225, 240, ${0.3 * o})`);
-    body.addColorStop(0.9, `rgba(225, 238, 250, ${0.42 * o})`);
-    body.addColorStop(1, `rgba(240, 248, 255, ${0.5 * o})`);
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    // body — visible on dark: lighter, more opaque
+    dropPath(r, stretch);
+    const body = ctx.createRadialGradient(-r * 0.1, -r * 0.08, r * 0.15, 0, 0, r);
+    body.addColorStop(0, `rgba(140, 165, 195, ${0.35 * o})`);
+    body.addColorStop(0.5, `rgba(110, 140, 170, ${0.3 * o})`);
+    body.addColorStop(0.85, `rgba(160, 185, 215, ${0.45 * o})`);
+    body.addColorStop(1, `rgba(195, 215, 235, ${0.65 * o})`);
     ctx.fillStyle = body;
     ctx.fill();
 
-    // bright outer edge (total internal reflection)
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(230, 240, 250, ${0.55 * o})`;
-    ctx.lineWidth = Math.max(0.6, r * 0.07);
+    // edge glow — double stroke for glass thickness
+    dropPath(r, stretch);
+    ctx.shadowColor = `rgba(140, 175, 210, ${0.4 * o})`;
+    ctx.shadowBlur = r * 0.4;
+    ctx.strokeStyle = `rgba(185, 210, 235, ${0.9 * o})`;
+    ctx.lineWidth = Math.max(1.5, r * 0.09);
     ctx.stroke();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
 
-    // inner refraction ring
+    // main specular — white crescent
+    ctx.save();
+    dropPath(r, stretch);
+    ctx.clip();
+    const cx1 = -r * 0.28, cy1 = -r * 0.32;
     ctx.beginPath();
-    ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(200, 218, 236, ${0.08 * o})`;
-    ctx.lineWidth = 0.3;
-    ctx.stroke();
-
-    // specular highlight — upper-left (from ambient light above)
-    ctx.beginPath();
-    const hx = -r * 0.28, hy = -r * 0.32;
-    const hs = Math.max(r * 0.22, 1.5);
-    ctx.ellipse(hx, hy, hs, hs * 0.6, -0.4, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${0.85 * o})`;
+    ctx.ellipse(cx1, cy1, r * 0.55, r * 0.24, -0.45, 0, Math.PI * 2);
+    const sg = ctx.createRadialGradient(cx1, cy1, 0, cx1, cy1, r * 0.55);
+    sg.addColorStop(0, `rgba(255, 255, 255, ${Math.min(1, 1.3 * o)})`);
+    sg.addColorStop(0.25, `rgba(255, 255, 255, ${0.75 * o})`);
+    sg.addColorStop(0.55, `rgba(220, 235, 250, ${0.3 * o})`);
+    sg.addColorStop(1, 'rgba(220, 235, 250, 0)');
+    ctx.fillStyle = sg;
     ctx.fill();
 
-    // secondary specular
+    // secondary
     if (r > 5) {
+      const sy = r * 0.5 * (1 + stretch * 0.3);
       ctx.beginPath();
-      ctx.ellipse(-r * 0.06, -r * 0.1, r * 0.07, r * 0.035, 0.3, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(235, 245, 255, ${0.2 * o})`;
+      ctx.ellipse(r * 0.16, sy, r * 0.15, r * 0.065, 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(230, 242, 255, ${0.45 * o})`;
       ctx.fill();
     }
-
-    // bottom caustic — light focused by the lens shape
-    ctx.beginPath();
-    ctx.ellipse(r * 0.06, r * 0.45, r * 0.35, r * 0.1, 0, 0, Math.PI * 2);
-    const cg = ctx.createRadialGradient(r * 0.06, r * 0.45, 0, r * 0.06, r * 0.45, r * 0.35);
-    cg.addColorStop(0, `rgba(220, 235, 250, ${0.18 * o})`);
-    cg.addColorStop(1, 'rgba(220, 235, 250, 0)');
-    ctx.fillStyle = cg;
-    ctx.fill();
+    ctx.restore();
 
     ctx.restore();
   }
 
   function drawTrail(d) {
-    if (d.trail.length < 3) return;
-    const tw = Math.max(0.6, d.r * 0.25);
+    if (d.trail.length < 4) return;
     const len = d.trail.length;
+    const t0 = d.trail[0], t1 = d.trail[len - 1];
+    if (!isFinite(t0.x + t0.y + t1.x + t1.y)) return;
+    if (Math.abs(t1.x - t0.x) < 0.5 && Math.abs(t1.y - t0.y) < 0.5) return;
 
-    // trail thins toward the top (water drains into the drop)
-    ctx.beginPath();
-    ctx.moveTo(d.trail[0].x, d.trail[0].y);
-    for (let i = 1; i < len - 1; i++) {
-      const p = d.trail[i], n = d.trail[i + 1];
-      ctx.quadraticCurveTo(p.x, p.y, (p.x + n.x) / 2, (p.y + n.y) / 2);
+    // thin water streak — wider at bottom (near drop), vanishing at top
+    for (let i = 1; i < len; i++) {
+      const p = d.trail[i - 1], c = d.trail[i];
+      const t = i / len;
+      const w = t * Math.max(0.4, d.r * 0.18);
+      const a = t * 0.18 * d.opacity;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.strokeStyle = `rgba(160, 185, 210, ${a})`;
+      ctx.lineWidth = w;
+      ctx.lineCap = 'round';
+      ctx.stroke();
     }
 
-    // the trail is brighter where it's fresher
-    const dx = d.trail[len-1].x - d.trail[0].x, dy = d.trail[len-1].y - d.trail[0].y;
-    if (dx === 0 && dy === 0) return;
-    const grad = ctx.createLinearGradient(d.trail[0].x, d.trail[0].y, d.trail[len-1].x, d.trail[len-1].y);
-    grad.addColorStop(0, `rgba(185, 205, 225, 0)`);
-    grad.addColorStop(0.4, `rgba(195, 213, 230, ${0.04 * d.opacity})`);
-    grad.addColorStop(1, `rgba(210, 225, 240, ${0.1 * d.opacity})`);
-
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = tw;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    // bright edge highlights on trail
-    ctx.strokeStyle = `rgba(220, 235, 248, ${0.025 * d.opacity})`;
-    ctx.lineWidth = tw + 0.8;
-    ctx.stroke();
+    // highlight on trail edge
+    for (let i = Math.max(1, len - 20); i < len; i++) {
+      const p = d.trail[i - 1], c = d.trail[i];
+      const t = (i - len + 20) / 20;
+      ctx.beginPath();
+      ctx.moveTo(p.x - 0.5, p.y);
+      ctx.lineTo(c.x - 0.5, c.y);
+      ctx.strokeStyle = `rgba(200, 220, 240, ${t * 0.08 * d.opacity})`;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
   }
 
   let time = 0;
@@ -1764,19 +1760,20 @@ async function saveSettings() {
     ctx.clearRect(0, 0, W, H);
     time++;
 
-    // mist with very subtle shimmer
+    // condensation mist
     for (const m of mist) {
-      const shimmer = 0.92 + 0.08 * Math.sin(time * 0.002 * m.flicker + m.x);
       ctx.beginPath();
       ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(200, 215, 230, ${m.o * shimmer * 1.5})`;
+      ctx.fillStyle = `rgba(160, 180, 200, ${m.o * 0.7})`;
       ctx.fill();
+      ctx.strokeStyle = `rgba(180, 200, 220, ${m.o * 0.4})`;
+      ctx.lineWidth = 0.3;
+      ctx.stroke();
     }
 
-    // occasionally restore mist (condensation keeps forming)
-    if (time % 60 === 0 && mist.length < 1200) {
-      for (let i = 0; i < 5; i++) {
-        mist.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.3, 1.2), o: rnd(0.03, 0.1), flicker: rnd(0.8, 1.2) });
+    if (time % 80 === 0 && mist.length < 1200) {
+      for (let i = 0; i < 4; i++) {
+        mist.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.4, 1.5), o: rnd(0.04, 0.14) });
       }
     }
 
