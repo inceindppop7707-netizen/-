@@ -803,19 +803,19 @@ body {
 .grain-layer {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
-  opacity: 1;
+  opacity: 0.035;
   background-size: 200px;
-  mix-blend-mode: overlay;
 }
 
 /* ── condensation fog patches ── */
 .fog-layer {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
+  opacity: 0.3;
 }
 
 .fog-layer svg { width: 100%; height: 100%; }
