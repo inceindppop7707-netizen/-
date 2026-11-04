@@ -799,27 +799,6 @@ body {
 @keyframes float2 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(20px,-30px); } }
 @keyframes float3 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-20px,-25px); } }
 
-/* ── grain texture overlay — cold glass feel ── */
-.grain-layer {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.035;
-  background-size: 200px;
-}
-
-/* ── condensation fog patches ── */
-.fog-layer {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.3;
-}
-
-.fog-layer svg { width: 100%; height: 100%; }
-
 /* ── rain on glass ── */
 .rain-canvas {
   position: fixed;
@@ -849,8 +828,6 @@ body {
 </div>
 
 <div class="bg-layer" id="bgLayer"></div>
-<div class="grain-layer" id="grainLayer"></div>
-<div class="fog-layer" id="fogLayer"></div>
 <canvas class="rain-canvas" id="rainCanvas"></canvas>
 <div class="ambient">
   <div class="ambient-orb"></div>
@@ -1584,39 +1561,6 @@ async function saveSettings() {
     addNarrator('API 设置已更新');
   } catch {}
 }
-
-// ── Glass grain texture (like Nyx's paper grain but cold) ──
-(function glassGrain() {
-  const S = 200, c = document.createElement('canvas');
-  c.width = c.height = S;
-  const x = c.getContext('2d'), d = x.createImageData(S, S);
-  for (let i = 0; i < d.data.length; i += 4) {
-    const v = Math.random();
-    if (v < 0.45) continue;
-    const bright = Math.random() > 0.5;
-    d.data[i] = d.data[i+1] = d.data[i+2] = bright ? 210 : 20;
-    d.data[i+3] = (v - 0.45) * (bright ? 18 : 22);
-  }
-  x.putImageData(d, 0, 0);
-  const el = document.getElementById('grainLayer');
-  if (el) el.style.backgroundImage = 'url(' + c.toDataURL() + ')';
-})();
-
-// ── Condensation fog patches ──
-(function fogPatches() {
-  const el = document.getElementById('fogLayer');
-  if (!el) return;
-  const W = 390, H = 844, R = Math.random;
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">`;
-  svg += '<defs><filter id="fog_f"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="4" seed="3"/><feColorMatrix type="matrix" values="0 0 0 0 0.7  0 0 0 0 0.78  0 0 0 0 0.85  0 0 0 -3.5 2.2"/><feGaussianBlur stdDeviation="20"/></filter></defs>';
-  // a few soft fog blobs
-  for (let i = 0; i < 5; i++) {
-    const cx = R() * W, cy = R() * H, rx = 60 + R() * 120, ry = 40 + R() * 80;
-    svg += `<ellipse cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" rx="${rx.toFixed(0)}" ry="${ry.toFixed(0)}" fill="rgba(160,180,200,0.04)" filter="url(#fog_f)"/>`;
-  }
-  svg += '</svg>';
-  el.innerHTML = svg;
-})();
 
 // ── Rain on glass ──
 (function rainOnGlass() {
