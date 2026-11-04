@@ -1562,151 +1562,199 @@ async function saveSettings() {
   } catch {}
 }
 
-// ── Rain on glass ──
+// ── Rain on glass (background refraction) ──
 (function rainOnGlass() {
   const canvas = document.getElementById('rainCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   let W, H;
 
+  const bgSnap = document.createElement('canvas');
+  const bgCtx = bgSnap.getContext('2d');
+
   function resize() {
     W = canvas.width = window.innerWidth;
     H = canvas.height = window.innerHeight;
+    bgSnap.width = W; bgSnap.height = H;
+    captureBg();
+    seedMist();
   }
-  resize();
-  window.addEventListener('resize', resize);
+
+  function captureBg() {
+    const bgEl = document.getElementById('bgLayer');
+    if (!bgEl) return;
+    const style = getComputedStyle(bgEl);
+    const bgImg = style.backgroundImage;
+
+    bgCtx.fillStyle = '#1a1d21';
+    bgCtx.fillRect(0, 0, W, H);
+
+    const g = bgCtx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, 'rgba(50, 60, 75, 0.5)');
+    g.addColorStop(0.5, 'rgba(35, 42, 52, 0.6)');
+    g.addColorStop(1, 'rgba(25, 30, 38, 0.7)');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0, 0, W, H);
+
+    for (let i = 0; i < 6; i++) {
+      const cx = rnd(0, W), cy = rnd(0, H), cr = rnd(60, 200);
+      const gg = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, cr);
+      gg.addColorStop(0, `rgba(${50+rnd(0,30)}, ${60+rnd(0,25)}, ${80+rnd(0,20)}, 0.15)`);
+      gg.addColorStop(1, 'rgba(30, 36, 44, 0)');
+      bgCtx.fillStyle = gg;
+      bgCtx.fillRect(0, 0, W, H);
+    }
+  }
 
   function rnd(a, b) { return a + Math.random() * (b - a); }
 
-  // --- tiny mist drops stuck on glass, don't move ---
+  // mist: tiny static droplets
   const mist = [];
   function seedMist() {
     mist.length = 0;
-    const count = Math.floor(W * H / 800);
+    const count = Math.min(Math.floor(W * H / 600), 1200);
     for (let i = 0; i < count; i++) {
-      mist.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.3, 1.2), o: rnd(0.08, 0.2) });
+      mist.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.4, 1.4), o: rnd(0.05, 0.15) });
     }
   }
-  seedMist();
-  window.addEventListener('resize', seedMist);
 
-  // --- water streams that slide down the glass ---
-  const streams = [];
-  const maxStreams = 12;
+  // drops with refraction
+  const drops = [];
+  const maxDrops = 30;
 
-  class Stream {
-    constructor() { this.reset(true); }
+  class Drop {
+    constructor(init) {
+      this.reset(init);
+    }
     reset(init) {
-      this.x = rnd(10, W - 10);
-      this.y = init ? rnd(-H * 0.3, H * 0.6) : rnd(-60, -10);
-      this.width = rnd(1, 2.8);
-      this.speed = rnd(0.15, 0.5);
-      this.wobbleAmp = rnd(0.2, 0.8);
-      this.wobbleFreq = rnd(0.01, 0.03);
-      this.opacity = rnd(0.04, 0.1);
-      this.path = [{ x: this.x, y: this.y }];
-      this.maxPath = Math.floor(rnd(60, 200));
+      this.x = rnd(8, W - 8);
+      this.y = init ? rnd(-20, H) : rnd(-80, -10);
+      this.r = rnd(3, 12);
+      this.opacity = rnd(0.5, 0.9);
+      this.stuck = true;
+      this.vy = 0;
+      this.vx = 0;
+      this.stickTime = rnd(200, 800);
       this.age = 0;
-      this.pause = 0;
-      this.pauseChance = rnd(0.002, 0.008);
+      this.wander = rnd(-0.06, 0.06);
+      this.trail = [];
     }
 
     update() {
       this.age++;
-      if (this.pause > 0) { this.pause--; return; }
-      if (Math.random() < this.pauseChance) {
-        this.pause = Math.floor(rnd(30, 120));
+      if (this.stuck) {
+        if (this.age > this.stickTime) {
+          this.stuck = false;
+          this.vy = 0.08 + this.r * 0.02;
+        }
         return;
       }
+      this.trail.push({ x: this.x, y: this.y, r: this.r * 0.25 });
+      if (this.trail.length > 80) this.trail.shift();
 
-      this.y += this.speed;
-      this.x += Math.sin(this.y * this.wobbleFreq) * this.wobbleAmp;
-      this.x += rnd(-0.15, 0.15);
+      const gravity = 0.008 + this.r * 0.001;
+      this.vy += gravity;
+      this.vy *= 0.988;
+      this.vx += this.wander * (Math.random() - 0.48);
+      this.vx *= 0.9;
+      if (Math.random() < 0.03) this.wander = rnd(-0.08, 0.08);
 
-      this.path.push({ x: this.x, y: this.y });
-      if (this.path.length > this.maxPath) this.path.shift();
+      this.x += this.vx;
+      this.y += this.vy;
 
       if (this.y > H + 30) this.reset(false);
     }
 
-    draw() {
-      if (this.path.length < 3) return;
-      ctx.beginPath();
-      ctx.moveTo(this.path[0].x, this.path[0].y);
-      for (let i = 1; i < this.path.length - 1; i++) {
-        const cx = (this.path[i].x + this.path[i + 1].x) / 2;
-        const cy = (this.path[i].y + this.path[i + 1].y) / 2;
-        ctx.quadraticCurveTo(this.path[i].x, this.path[i].y, cx, cy);
+    drawTrail() {
+      if (this.trail.length < 2) return;
+      for (let i = 0; i < this.trail.length; i++) {
+        const t = this.trail[i];
+        const progress = i / this.trail.length;
+        const alpha = progress * 0.06 * this.opacity;
+        const tr = t.r * (0.3 + progress * 0.7);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, tr, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(bgSnap,
+          t.x - tr * 1.3, t.y - tr * 1.3, tr * 2.6, tr * 2.6,
+          t.x - tr, t.y - tr, tr * 2, tr * 2
+        );
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = 'rgba(200, 215, 230, 1)';
+        ctx.fill();
+        ctx.restore();
       }
-      ctx.strokeStyle = `rgba(190, 205, 220, ${this.opacity})`;
-      ctx.lineWidth = this.width;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      // small bead at the bottom of the stream
-      const tip = this.path[this.path.length - 1];
-      const br = this.width * 1.5;
-      ctx.beginPath();
-      ctx.arc(tip.x, tip.y, br, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(200, 215, 230, ${this.opacity * 1.5})`;
-      ctx.fill();
-    }
-  }
-
-  for (let i = 0; i < maxStreams; i++) streams.push(new Stream());
-
-  // --- still drops: larger ones that sit on glass and occasionally slide ---
-  const drops = [];
-  const maxDrops = 25;
-
-  class StillDrop {
-    constructor() { this.reset(true); }
-    reset(init) {
-      this.x = rnd(5, W - 5);
-      this.y = init ? rnd(0, H) : rnd(-20, H * 0.2);
-      this.r = rnd(2, 6);
-      this.opacity = rnd(0.12, 0.25);
-      this.life = rnd(300, 900);
-      this.age = 0;
-    }
-
-    update() {
-      this.age++;
-      if (this.age > this.life) this.reset(false);
     }
 
     draw() {
-      const fade = this.age > this.life - 60 ? (this.life - this.age) / 60 : Math.min(this.age / 30, 1);
-      const o = this.opacity * fade;
-      if (o <= 0) return;
+      const r = this.r;
+      const x = this.x;
+      const y = this.y;
+      const o = this.opacity;
 
-      // soft circular drop with subtle gradient
-      const g = ctx.createRadialGradient(this.x - this.r * 0.2, this.y - this.r * 0.2, 0, this.x, this.y, this.r);
-      g.addColorStop(0, `rgba(210, 220, 232, ${o * 0.6})`);
-      g.addColorStop(0.5, `rgba(190, 205, 220, ${o * 0.25})`);
-      g.addColorStop(1, `rgba(170, 185, 200, ${o * 0.05})`);
+      this.drawTrail();
 
+      // refraction: draw magnified/shifted background through the drop
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-      ctx.fillStyle = g;
-      ctx.fill();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.clip();
 
-      // thin edge
+      const zoom = 1.3;
+      const srcSize = r * 2 * zoom;
+      const offsetX = r * 0.15;
+      const offsetY = r * 0.2;
+      ctx.drawImage(bgSnap,
+        x - srcSize / 2 + offsetX, y - srcSize / 2 + offsetY, srcSize, srcSize,
+        x - r, y - r, r * 2, r * 2
+      );
+
+      // slight brighten inside the drop
+      ctx.globalAlpha = 0.08 * o;
+      ctx.fillStyle = '#c0d0e0';
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      ctx.restore();
+
+      // edge ring — surface tension
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(200, 215, 230, ${o * 0.4})`;
-      ctx.lineWidth = 0.3;
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(200, 215, 230, ${0.2 * o})`;
+      ctx.lineWidth = r > 6 ? 0.8 : 0.4;
       ctx.stroke();
 
-      // tiny highlight
+      // dark edge shadow (bottom-right)
       ctx.beginPath();
-      ctx.arc(this.x - this.r * 0.3, this.y - this.r * 0.3, this.r * 0.15, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(235, 242, 250, ${o * 0.6})`;
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      const shadow = ctx.createRadialGradient(x, y, r * 0.6, x, y, r);
+      shadow.addColorStop(0, 'rgba(0,0,0,0)');
+      shadow.addColorStop(1, `rgba(10, 18, 28, ${0.12 * o})`);
+      ctx.fillStyle = shadow;
       ctx.fill();
+
+      // specular highlight — upper left
+      ctx.beginPath();
+      const hx = x - r * 0.32, hy = y - r * 0.34;
+      const hr = r * 0.25;
+      ctx.ellipse(hx, hy, hr, hr * 0.6, -0.4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(240, 248, 255, ${0.55 * o})`;
+      ctx.fill();
+
+      // secondary subtle highlight
+      if (r > 5) {
+        ctx.beginPath();
+        ctx.ellipse(x - r * 0.1, y - r * 0.05, r * 0.1, r * 0.05, 0.3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(225, 238, 250, ${0.18 * o})`;
+        ctx.fill();
+      }
     }
   }
 
-  for (let i = 0; i < maxDrops; i++) drops.push(new StillDrop());
+  for (let i = 0; i < maxDrops; i++) drops.push(new Drop(true));
+
+  resize();
+  window.addEventListener('resize', resize);
 
   function tick() {
     ctx.clearRect(0, 0, W, H);
@@ -1719,13 +1767,7 @@ async function saveSettings() {
       ctx.fill();
     }
 
-    // streams
-    for (const s of streams) {
-      s.update();
-      s.draw();
-    }
-
-    // still drops
+    // drops
     for (const d of drops) {
       d.update();
       d.draw();
