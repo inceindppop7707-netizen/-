@@ -1570,14 +1570,6 @@ async function saveSettings() {
   if (!ctx) return;
   let W, H;
 
-  function resize() {
-    W = canvas.width = document.documentElement.clientWidth || window.innerWidth || 400;
-    H = canvas.height = document.documentElement.clientHeight || window.innerHeight || 800;
-    seedMist();
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
   function rnd(a, b) { return a + Math.random() * (b - a); }
 
   // mist: dense tiny condensation drops on cold glass
@@ -1654,6 +1646,14 @@ async function saveSettings() {
   }
 
   for (let i = 0; i < 26; i++) drops.push(new Drop(true));
+
+  function resize() {
+    W = canvas.width = document.documentElement.clientWidth || window.innerWidth || 400;
+    H = canvas.height = document.documentElement.clientHeight || window.innerHeight || 800;
+    seedMist();
+  }
+  resize();
+  window.addEventListener('resize', resize);
 
   function drawDrop(d) {
     const { x, y, r, opacity: o, squash } = d;
@@ -1741,6 +1741,8 @@ async function saveSettings() {
     }
 
     // the trail is brighter where it's fresher
+    const dx = d.trail[len-1].x - d.trail[0].x, dy = d.trail[len-1].y - d.trail[0].y;
+    if (dx === 0 && dy === 0) return;
     const grad = ctx.createLinearGradient(d.trail[0].x, d.trail[0].y, d.trail[len-1].x, d.trail[len-1].y);
     grad.addColorStop(0, `rgba(185, 205, 225, 0)`);
     grad.addColorStop(0.4, `rgba(195, 213, 230, ${0.04 * d.opacity})`);
