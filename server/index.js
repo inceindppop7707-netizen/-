@@ -6,7 +6,7 @@ import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
@@ -34,6 +34,21 @@ function checkAdmin(req, res) {
     return false;
   }
   return true;
+}
+
+// ── Runtime config (hot-swappable from frontend) ──
+const RUNTIME_CONFIG_PATH = resolve(__dirname, 'runtime-config.json');
+let runtimeConfig = {};
+try {
+  if (existsSync(RUNTIME_CONFIG_PATH)) {
+    runtimeConfig = JSON.parse(readFileSync(RUNTIME_CONFIG_PATH, 'utf-8'));
+  }
+} catch { /* start fresh */ }
+
+function getRuntimeConfig() { return runtimeConfig; }
+function setRuntimeConfig(cfg) {
+  runtimeConfig = { ...runtimeConfig, ...cfg };
+  writeFileSync(RUNTIME_CONFIG_PATH, JSON.stringify(runtimeConfig, null, 2));
 }
 
 // ── System prompt (from file, cached) ──
@@ -196,8 +211,9 @@ app.post('/api/chat', async (req, res) => {
 
     // Step 5: assemble context and call model
     // Decide which model/provider to use
-    const modelName = reqModel || settings.model || process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
-    const useOpenAICompat = process.env.USE_OPENAI_COMPAT === 'true';
+    const rc = getRuntimeConfig();
+    const modelName = reqModel || rc.model || settings.model || process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+    const useOpenAICompat = rc.use_openai_compat ?? (process.env.USE_OPENAI_COMPAT === 'true');
     const isAnthropic = !useOpenAICompat && (modelName.startsWith('claude') || modelName.includes('claude'));
 
     let assistantText = '';
@@ -206,8 +222,8 @@ app.post('/api/chat', async (req, res) => {
 
     if (isAnthropic) {
       // Anthropic native API
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      const baseURL = process.env.ANTHROPIC_BASE_URL || '';
+      const apiKey = rc.api_key || process.env.ANTHROPIC_API_KEY;
+      const baseURL = rc.api_base_url || process.env.ANTHROPIC_BASE_URL || '';
       const anthropic = makeAnthropicClient(apiKey, baseURL);
 
       // Build system blocks with prompt caching
@@ -261,8 +277,8 @@ app.post('/api/chat', async (req, res) => {
       }
     } else {
       // OpenAI-compatible API (DeepSeek, Qwen, etc.)
-      const providerKey = process.env.OPENAI_COMPAT_API_KEY || process.env.DEEPSEEK_API_KEY || '';
-      const providerBase = process.env.OPENAI_COMPAT_BASE_URL || process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1';
+      const providerKey = rc.api_key || process.env.OPENAI_COMPAT_API_KEY || process.env.DEEPSEEK_API_KEY || '';
+      const providerBase = rc.api_base_url || process.env.OPENAI_COMPAT_BASE_URL || process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1';
       const openai = makeOpenAIClient(providerKey, providerBase);
 
       const sysContent = (settings.system_prompt || systemPromptText)
@@ -515,6 +531,33 @@ app.post('/api/settings', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// ══════════════════════════════════════
+//  Runtime Config APIs (hot-swap model/key/url from frontend)
+// ══════════════════════════════════════
+
+app.get('/api/runtime-config', (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  const rc = getRuntimeConfig();
+  res.json({
+    model: rc.model || process.env.CLAUDE_MODEL || '',
+    api_key: rc.api_key ? '***' + rc.api_key.slice(-6) : (process.env.ANTHROPIC_API_KEY ? '***' + process.env.ANTHROPIC_API_KEY.slice(-6) : ''),
+    api_base_url: rc.api_base_url || process.env.ANTHROPIC_BASE_URL || '',
+    use_openai_compat: rc.use_openai_compat ?? (process.env.USE_OPENAI_COMPAT === 'true'),
+  });
+});
+
+app.post('/api/runtime-config', (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  const { model, api_key, api_base_url, use_openai_compat } = req.body;
+  const updates = {};
+  if (model !== undefined) updates.model = model;
+  if (api_key !== undefined) updates.api_key = api_key;
+  if (api_base_url !== undefined) updates.api_base_url = api_base_url;
+  if (use_openai_compat !== undefined) updates.use_openai_compat = use_openai_compat;
+  setRuntimeConfig(updates);
+  res.json({ ok: true, config: { ...getRuntimeConfig(), api_key: updates.api_key ? '***' + updates.api_key.slice(-6) : undefined } });
 });
 
 // ══════════════════════════════════════
