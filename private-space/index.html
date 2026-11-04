@@ -798,6 +798,15 @@ body {
 @keyframes float2 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(20px,-30px); } }
 @keyframes float3 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-20px,-25px); } }
 
+/* ── rain on glass ── */
+.rain-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+}
+
 @media (min-width: 521px) {
   .app {
     border-left: 1px solid var(--border);
@@ -818,6 +827,7 @@ body {
 </div>
 
 <div class="bg-layer" id="bgLayer"></div>
+<canvas class="rain-canvas" id="rainCanvas"></canvas>
 <div class="ambient">
   <div class="ambient-orb"></div>
   <div class="ambient-orb"></div>
@@ -1550,6 +1560,147 @@ async function saveSettings() {
     addNarrator('API 设置已更新');
   } catch {}
 }
+
+// ── Rain on glass ──
+(function rainOnGlass() {
+  const canvas = document.getElementById('rainCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  class Drop {
+    constructor() { this.reset(); }
+    reset() {
+      this.x = Math.random() * W;
+      this.y = Math.random() * -H;
+      this.radius = 0.8 + Math.random() * 1.8;
+      this.speed = 0.3 + Math.random() * 1.2;
+      this.life = 1;
+      this.stuck = Math.random() < 0.35;
+      this.stuckY = 0;
+      this.trail = [];
+      this.sliding = false;
+      this.slideSpeed = 0;
+      this.slideWait = 0;
+    }
+  }
+
+  class StuckDrop {
+    constructor(x, y, r) {
+      this.x = x;
+      this.y = y;
+      this.radius = r;
+      this.opacity = 0.5 + Math.random() * 0.4;
+      this.life = 300 + Math.random() * 600;
+      this.age = 0;
+      this.sliding = false;
+      this.slideSpeed = 0;
+      this.trail = [];
+      this.slideDelay = 60 + Math.random() * 200;
+    }
+  }
+
+  const drops = [];
+  const stuckDrops = [];
+  const maxDrops = 60;
+  const maxStuck = 40;
+
+  for (let i = 0; i < maxDrops; i++) {
+    const d = new Drop();
+    d.y = Math.random() * H;
+    drops.push(d);
+  }
+
+  function drawDrop(x, y, r, alpha) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(174, 194, 186, ${alpha})`;
+    ctx.fill();
+  }
+
+  function drawTrail(trail, alpha) {
+    if (trail.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x, trail[0].y);
+    for (let i = 1; i < trail.length; i++) {
+      ctx.lineTo(trail[i].x, trail[i].y);
+    }
+    ctx.strokeStyle = `rgba(174, 194, 186, ${alpha * 0.3})`;
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+  }
+
+  function tick() {
+    ctx.clearRect(0, 0, W, H);
+
+    // falling drops
+    for (const d of drops) {
+      d.y += d.speed;
+      if (d.y > H + 10) {
+        d.reset();
+        d.x = Math.random() * W;
+        d.y = Math.random() * -100;
+      }
+      drawDrop(d.x, d.y, d.radius * 0.6, 0.25);
+
+      // occasionally spawn a stuck drop
+      if (d.stuck && d.y > 0 && !d.stuckY && Math.random() < 0.003 && stuckDrops.length < maxStuck) {
+        stuckDrops.push(new StuckDrop(d.x, d.y, d.radius * 1.8));
+        d.stuckY = 1;
+      }
+    }
+
+    // stuck drops on glass
+    for (let i = stuckDrops.length - 1; i >= 0; i--) {
+      const s = stuckDrops[i];
+      s.age++;
+
+      if (s.age > s.slideDelay && !s.sliding && Math.random() < 0.01) {
+        s.sliding = true;
+        s.slideSpeed = 0.15 + Math.random() * 0.6;
+      }
+
+      if (s.sliding) {
+        s.trail.push({ x: s.x, y: s.y });
+        if (s.trail.length > 30) s.trail.shift();
+        s.y += s.slideSpeed;
+        s.x += (Math.random() - 0.5) * 0.3;
+        s.slideSpeed += 0.005;
+      }
+
+      const fade = s.age > s.life ? Math.max(0, 1 - (s.age - s.life) / 120) : 1;
+
+      if (s.trail.length > 0) {
+        drawTrail(s.trail, s.opacity * fade);
+      }
+
+      // refraction highlight
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+      const grad = ctx.createRadialGradient(s.x - s.radius * 0.3, s.y - s.radius * 0.3, 0, s.x, s.y, s.radius);
+      grad.addColorStop(0, `rgba(210, 225, 218, ${0.5 * s.opacity * fade})`);
+      grad.addColorStop(0.5, `rgba(174, 194, 186, ${0.3 * s.opacity * fade})`);
+      grad.addColorStop(1, `rgba(140, 165, 155, ${0.1 * s.opacity * fade})`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      if (fade <= 0 || s.y > H + 20) {
+        stuckDrops.splice(i, 1);
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  tick();
+})();
 
 // ── Start ──
 init();
