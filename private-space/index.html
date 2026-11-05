@@ -240,6 +240,7 @@ body {
 .msg-line.theirs { align-self: flex-start; color: var(--text-primary); }
 .msg-line.mine {
   align-self: flex-end;
+  width: fit-content;
   color: var(--text-mine);
   text-align: right;
   background: rgba(255,255,255,0.04);
@@ -1096,11 +1097,14 @@ async function ensureSession() {
 }
 
 async function loadMessages() {
+  console.log('[loadMessages] useAPI:', useAPI, 'sessionId:', sessionId);
   if (!useAPI || !sessionId) return;
   try {
     const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/messages?limit=100`);
+    console.log('[loadMessages] response status:', res.status);
     if (!res.ok) return;
     const msgs = await res.json();
+    console.log('[loadMessages] msgs count:', msgs.length);
     if (!msgs.length) return;
     // Clear existing messages
     while (messagesEl.firstChild && messagesEl.firstChild !== typing) {

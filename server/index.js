@@ -904,8 +904,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
-// ── Serve frontend ──
-app.use(express.static(resolve(__dirname, '../private-space')));
+// ── Serve frontend (no cache for HTML so updates take effect immediately) ──
+app.use(express.static(resolve(__dirname, '../private-space'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.set('Cache-Control', 'no-store');
+    }
+  },
+}));
 
 app.listen(PORT, () => {
   console.log(`林苗 server running on :${PORT}`);
