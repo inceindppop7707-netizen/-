@@ -16,7 +16,7 @@
   --text-primary: #dce0e4;
   --text-secondary: #b0b8c0;
   --text-dim: #8a9298;
-  --text-mine: rgba(220, 224, 228, 0.7);
+  --text-mine: rgba(220, 224, 228, 0.85);
   --accent: #7e90a0;
   --accent-dim: rgba(126, 144, 160, 0.15);
   --border: rgba(126, 144, 160, 0.12);
@@ -238,7 +238,14 @@ body {
 }
 
 .msg-line.theirs { align-self: flex-start; color: var(--text-primary); }
-.msg-line.mine { align-self: flex-end; color: var(--text-mine); text-align: right; }
+.msg-line.mine {
+  align-self: flex-end;
+  color: var(--text-mine);
+  text-align: right;
+  background: rgba(255,255,255,0.06);
+  padding: 8px 14px;
+  border-radius: 14px 14px 4px 14px;
+}
 
 .msg-line .msg-ts {
   font-size: 9px;
