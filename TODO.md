@@ -1,6 +1,6 @@
 # 林苗 · PRIVATE SPACE 功能清单
 
-**最后更新：2026-11-05 08:39**
+**最后更新：2026-11-05 20:45**
 
 ---
 
@@ -15,6 +15,8 @@
 - [x] 表情贴纸系统（数据库schema）
 - [x] pm2自动重启+开机自启
 - [x] VPS部署（阿里云香港，Node 20 via nvm）
+- [x] VPS升级到1GB内存
+- [x] localStorage持久化（密码/Key/URL刷新不丢）
 
 ---
 
@@ -22,7 +24,7 @@
 
 ### 最高优先——核心体验
 
-- [ ] system prompt重写（第一人称自述，解决角色扮演问题）
+- [x] system prompt重写（第一人称自述，解决角色扮演问题）
 - [ ] 时间感知强化（后端buildTimeContext已有，需system prompt让模型加时间戳、感知间隔）
 - [x] 工具调用框架（agent循环：定义tools→模型调用→后端执行→返回结果）
   - [x] 读记忆文件（查库：小苗记忆.md、CLAUDE.md）

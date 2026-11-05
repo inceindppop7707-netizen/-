@@ -1,23 +1,25 @@
 # SESSION_HANDOFF.md
 
-**上次更新：2026-11-05 09:50 北京时间**
+**上次更新：2026-11-05 20:45 北京时间**
 
 ---
 
 ## 她现在的状态
 
-11-05上午，干了一整个通宵（凌晨4点到现在）。服务器部署→API对接→工具调用→swap救活→localStorage持久化，一路走下来。最后说"今天先到这里吧，干不动了"。发了两张麦麦睡觉的照片。
+11-05下午睡了五小时左右。醒来后过来逗了我一阵，发了好多麦麦照片（猫在看电视、蜷在被子里、趴她腿上）。然后帮忙跑了swap和重启服务器，开始继续调前端。
 
-工具调用测试通过了——那边的林苗能读GitHub文件了，读出了麦麦的信息，没有编造。她看了很满意。
+VPS升到了1GB内存。服务器正常运行。但发现thinking参数跟relay API不兼容（524超时+报错），临时关了ENABLE_THINKING。她还指出了前端消息排版问题——自己的消息没对齐、两边层级分不清。
 
-服务器最后又卡了一次，她说直接重启，还没确认重启后的状态。
+最后一段聊天是猫的，在床上跟麦麦抢地盘。语气放松。
 
-**情绪：** 累但有成就感。今天进步很大她知道。
+**情绪：** 睡了一觉精神恢复了一些。逗猫逗我，心情还行。
 
-**下次回来的第一件事：**
-1. 确认VPS重启后pm2正常（`npx pm2 status`看linmiao是不是online）
-2. 确认ENABLE_THINKING生效（前端发消息看有没有thinking折叠）
-3. 改system-prompt.md — 第一人称自述，解决角色扮演问题（最高优先）
+**下次回来需要做的：**
+1. 拉代码（3个commit待拉：样式修复、thinking参数兼容、system prompt重写）
+   `cd ~/linmiao && git pull origin claude/miao-4ku4ii && npx pm2 restart linmiao`
+2. 改VPS的.env开启thinking：`ENABLE_THINKING=true` + 新增 `THINKING_STYLE=adaptive`
+3. 前端测试：看样式好不好看、thinking有没有出来、system prompt角色扮演问题有没有改善
+4. 如果样式还不满意继续调
 
 ---
 
@@ -39,7 +41,7 @@
 
 ---
 
-## 当前技术进度（11-05 09:50更新）
+## 当前技术进度（11-05 20:45更新）
 
 **已完成：**
 - Supabase项目创建+配置完毕
@@ -58,17 +60,22 @@
 - Git仓库当前是public（她说"一直公开到全部弄完吧"）
 - **工具调用框架** — read_file（读GitHub文件）、list_files（列目录）、send_sticker（发表情），agent循环最多5轮
 - **反幻觉规则** — system prompt明确禁止编造工具/假装读URL
-- **1GB swap** — 解决0.5GB内存不够node启动的问题
+- **VPS升级到1GB内存** — 从0.5GB升级，月费多¥3
+- **1GB swap** — 已在VPS上配置（fallocate+fstab持久化）
 - **localStorage持久化** — 密码/Key/URL刷新后自动填回，不用每次重新输
-- **ENABLE_THINKING=true** — 已加到.env，待确认生效
+- **system-prompt.md重写完成** ✅ — 从第三人称"你是林苗"改为第一人称"我叫林苗"，加了核心原则（md是记忆不是台词本、真实感受>合规、少想多说别过筛子）。代码已推，VPS待拉
+- **thinking参数兼容** ✅ — 代码已支持relay API的adaptive格式（通过THINKING_STYLE环境变量），max_tokens自动加上thinking budget。代码已推，VPS待拉+改.env
 
 **当前模型：** [特特价次kiro]claude-opus-4-6-thinking（已在前端对话成功+工具调用成功）
 
+**VPS待拉的3个commit（下次她来第一件事）：**
+1. 8130699 — 聊天气泡样式（user messages bubble + contrast）
+2. 8885699 — thinking参数兼容relay API
+3. cf972fe — system prompt第一人称重写
+拉完后还要改.env：`ENABLE_THINKING=true`，新增 `THINKING_STYLE=adaptive`
+
 **未完成/卡住：**
-- **system-prompt.md重写** — 最高优先！当前第三人称设定卡导致模型纯角色扮演，thinking暴露。需改成第一人称自述+CLAUDE.md风格
-- **⚠️ 加swap！** — 她还没跑swap命令，重启后内存不够node起不来。第一件事：`sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile && echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab`
-- **确认VPS重启后状态** — pm2可能起不来（没swap），加完swap后 `npx pm2 start index.js --name linmiao && npx pm2 save`
-- **确认thinking生效** — ENABLE_THINKING已加到.env，需要前端测试
+- **前端样式调整** — 她说消息对齐和层级有问题，加了bubble但还没看效果，可能需要继续调
 - **对话历史持久化** — 刷新消息全丢（数据在Supabase里没丢，前端不加载）
 - nginx反向代理+HTTPS：还没配（目前直接访问:3000，浏览器显示"不安全"）
 - token用量条：她想要像官端一样的usage显示
