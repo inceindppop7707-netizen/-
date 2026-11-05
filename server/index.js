@@ -362,6 +362,7 @@ app.post('/api/chat', async (req, res) => {
       if (useThinking) {
         if (thinkingStyle === 'adaptive') {
           apiParams.thinking = { type: 'adaptive', budget_tokens: thinkingBudget };
+          apiParams.output_config = { effort: 'high' };
         } else {
           apiParams.thinking = { type: 'enabled', budget_tokens: thinkingBudget };
         }
