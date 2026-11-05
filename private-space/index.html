@@ -1055,6 +1055,7 @@ initSplash();
 
 // ── Init ──
 async function init() {
+  loadFieldsFromStorage();
   await loadAvatar();
   await ensureSession();
   await loadMessages();
@@ -1536,7 +1537,27 @@ document.getElementById('bgInput').addEventListener('change', function(e) {
   reader.readAsDataURL(file);
 });
 
-// ── Settings ──
+// ── Settings (with localStorage persistence) ──
+function saveFieldsToStorage() {
+  try {
+    localStorage.setItem('lm_pass', document.getElementById('setPass').value);
+    localStorage.setItem('lm_url', document.getElementById('setURL').value);
+    const key = document.getElementById('setKey').value;
+    if (key) localStorage.setItem('lm_key', key);
+  } catch {}
+}
+function loadFieldsFromStorage() {
+  try {
+    const p = localStorage.getItem('lm_pass');
+    const u = localStorage.getItem('lm_url');
+    const k = localStorage.getItem('lm_key');
+    if (p) document.getElementById('setPass').value = p;
+    if (u) document.getElementById('setURL').value = u;
+    if (k) document.getElementById('setKey').value = k;
+    if (p) loadRuntimeConfig();
+  } catch {}
+}
+
 function toggleSettings() {
   document.getElementById('settingsOverlay').classList.toggle('show');
 }
@@ -1586,6 +1607,7 @@ async function connectAPI() {
     }
     await loadModelList();
     status.textContent = '已连接';
+    saveFieldsToStorage();
   } catch (e) {
     status.textContent = '连接失败: ' + e.message;
   } finally {
