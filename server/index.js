@@ -348,17 +348,23 @@ app.post('/api/chat', async (req, res) => {
       // Extended thinking support
       const useThinking = process.env.ENABLE_THINKING === 'true';
       const thinkingBudget = parseInt(process.env.THINKING_BUDGET) || 8000;
+      // Some relay APIs (e.g. api.blanka.cc) use 'adaptive' instead of 'enabled'
+      const thinkingStyle = process.env.THINKING_STYLE || 'enabled';
 
       const apiParams = {
         model: modelName,
-        max_tokens: maxReplyTokens,
+        max_tokens: useThinking ? thinkingBudget + maxReplyTokens : maxReplyTokens,
         system: systemBlocks,
         messages: [...history],
         tools: TOOLS,
       };
 
       if (useThinking) {
-        apiParams.thinking = { type: 'enabled', budget_tokens: thinkingBudget };
+        if (thinkingStyle === 'adaptive') {
+          apiParams.thinking = { type: 'adaptive', budget_tokens: thinkingBudget };
+        } else {
+          apiParams.thinking = { type: 'enabled', budget_tokens: thinkingBudget };
+        }
       } else {
         apiParams.temperature = temperature;
       }
