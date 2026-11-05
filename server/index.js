@@ -2,7 +2,6 @@ import WebSocket from 'ws';
 globalThis.WebSocket = WebSocket;
 
 import express from 'express';
-import compression from 'compression';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
@@ -16,7 +15,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
