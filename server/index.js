@@ -60,6 +60,104 @@ try {
   systemPromptText = '你是林苗。';
 }
 
+// ── Tool definitions ──
+const GITHUB_OWNER = 'inceindppop7707-netizen';
+const GITHUB_REPO = '-';
+const GITHUB_BRANCH = 'claude/miao-4ku4ii';
+
+const TOOLS = [
+  {
+    name: 'read_file',
+    description: '读取GitHub仓库中的文件。用来查阅记忆文件（小苗记忆.md、CLAUDE.md）、聊天记录（chat-log/）、SESSION_HANDOFF.md等。涉及她的个人信息时必须先用这个工具查库再回答。',
+    input_schema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: '文件路径，相对于仓库根目录。例如：小苗记忆.md、CLAUDE.md、chat-log/2026-11-05.md、SESSION_HANDOFF.md',
+        },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'list_files',
+    description: '列出GitHub仓库中某个目录下的文件列表。用来查看有哪些聊天记录、有哪些文件可读。',
+    input_schema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: '目录路径，相对于仓库根目录。例如：chat-log、diary',
+        },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'send_sticker',
+    description: '发送一个表情包。根据当前语境选择合适的表情。',
+    input_schema: {
+      type: 'object',
+      properties: {
+        description: {
+          type: 'string',
+          description: '想要表达的情绪或场景，比如"开心""委屈""贱笑""撒娇"',
+        },
+      },
+      required: ['description'],
+    },
+  },
+];
+
+async function executeTool(name, input) {
+  if (name === 'read_file') {
+    try {
+      const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${encodeURIComponent(input.path).replace(/%2F/g, '/')}`;
+      const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!resp.ok) return { error: `文件不存在或无法读取 (${resp.status}): ${input.path}` };
+      const text = await resp.text();
+      if (text.length > 30000) return { content: text.slice(0, 30000) + '\n\n[文件过长，已截断]' };
+      return { content: text };
+    } catch (e) {
+      return { error: `读取失败: ${e.message}` };
+    }
+  }
+
+  if (name === 'list_files') {
+    try {
+      const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${input.path}?ref=${GITHUB_BRANCH}`;
+      const resp = await fetch(url, {
+        headers: { 'Accept': 'application/vnd.github.v3+json' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!resp.ok) return { error: `目录不存在 (${resp.status}): ${input.path}` };
+      const items = await resp.json();
+      if (!Array.isArray(items)) return { error: '不是一个目录' };
+      const listing = items.map(i => `${i.type === 'dir' ? '📁' : '📄'} ${i.name}`).join('\n');
+      return { content: listing };
+    } catch (e) {
+      return { error: `列目录失败: ${e.message}` };
+    }
+  }
+
+  if (name === 'send_sticker') {
+    try {
+      const { data: stickers } = await supabase.from('stickers').select('*');
+      if (!stickers || !stickers.length) return { error: '还没有表情包' };
+      const keyword = input.description.toLowerCase();
+      const match = stickers.find(s => s.description?.toLowerCase().includes(keyword));
+      if (match) return { sticker_url: match.image_url, description: match.description };
+      const random = stickers[Math.floor(Math.random() * stickers.length)];
+      return { sticker_url: random.image_url, description: random.description, note: '没找到精确匹配，随机选了一个' };
+    } catch (e) {
+      return { error: `表情查询失败: ${e.message}` };
+    }
+  }
+
+  return { error: `未知工具: ${name}` };
+}
+
 // ── Model clients ──
 // Claude (Anthropic native)
 function makeAnthropicClient(apiKey, baseURL) {
@@ -255,25 +353,46 @@ app.post('/api/chat', async (req, res) => {
         model: modelName,
         max_tokens: maxReplyTokens,
         system: systemBlocks,
-        messages: history,
+        messages: [...history],
+        tools: TOOLS,
       };
 
       if (useThinking) {
         apiParams.thinking = { type: 'enabled', budget_tokens: thinkingBudget };
-        // temperature must be 1 when thinking is enabled
       } else {
         apiParams.temperature = temperature;
       }
 
-      const response = await anthropic.messages.create(apiParams);
+      // Agent loop: keep calling until no more tool_use
+      const MAX_TOOL_ROUNDS = 5;
+      for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        const response = await anthropic.messages.create(apiParams);
 
-      // Extract thinking and text separately
-      for (const block of response.content) {
-        if (block.type === 'thinking') {
-          thinkingText += block.thinking;
-        } else if (block.type === 'text') {
-          assistantText += block.text;
+        for (const block of response.content) {
+          if (block.type === 'thinking') {
+            thinkingText += block.thinking;
+          } else if (block.type === 'text') {
+            assistantText += block.text;
+          }
         }
+
+        if (response.stop_reason !== 'tool_use') break;
+
+        const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
+        if (!toolUseBlocks.length) break;
+
+        apiParams.messages.push({ role: 'assistant', content: response.content });
+
+        const toolResults = [];
+        for (const tu of toolUseBlocks) {
+          const result = await executeTool(tu.name, tu.input);
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: tu.id,
+            content: JSON.stringify(result),
+          });
+        }
+        apiParams.messages.push({ role: 'user', content: toolResults });
       }
     } else {
       // OpenAI-compatible API (DeepSeek, Qwen, etc.)
