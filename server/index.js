@@ -115,7 +115,9 @@ const REPO_ROOT = resolve(__dirname, '..');
 async function executeTool(name, input) {
   if (name === 'read_file') {
     try {
-      const safePath = resolve(REPO_ROOT, input.path);
+      const filePath = input.path || input.file_path;
+      if (!filePath) return { error: '缺少path参数' };
+      const safePath = resolve(REPO_ROOT, filePath);
       if (!safePath.startsWith(REPO_ROOT + '/')) return { error: '路径不允许' };
       const text = readFileSync(safePath, 'utf-8');
       if (text.length > 30000) return { content: text.slice(0, 30000) + '\n\n[文件过长，已截断]' };
@@ -128,7 +130,8 @@ async function executeTool(name, input) {
 
   if (name === 'list_files') {
     try {
-      const safePath = resolve(REPO_ROOT, input.path);
+      const dirPath = input.path || input.file_path || '.';
+      const safePath = resolve(REPO_ROOT, dirPath);
       if (!safePath.startsWith(REPO_ROOT + '/') && safePath !== REPO_ROOT) return { error: '路径不允许' };
       const items = readdirSync(safePath, { withFileTypes: true });
       const listing = items

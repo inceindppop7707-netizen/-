@@ -259,21 +259,25 @@ body {
     inset -0.5px -0.5px 0 rgba(255,255,255,0.02);
 }
 
+.msg-line {
+  position: relative;
+}
 .msg-line .msg-ts {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 9px;
   color: var(--text-dim);
   opacity: 0;
   transition: opacity 0.2s;
   pointer-events: none;
-  margin: 0 6px;
   white-space: nowrap;
   text-shadow: none;
-  vertical-align: middle;
 }
 
 .msg-line:hover .msg-ts, .msg-line:active .msg-ts { opacity: 0.7; }
-.msg-line.theirs .msg-ts { float: right; }
-.msg-line.mine .msg-ts { float: left; }
+.msg-line.theirs .msg-ts { left: calc(100% + 6px); }
+.msg-line.mine .msg-ts { right: calc(100% + 6px); }
 
 .msg-line.narrator {
   align-self: center;
@@ -1076,8 +1080,38 @@ initSplash();
 async function init() {
   loadFieldsFromStorage();
   await loadAvatar();
-  await ensureSession();
-  await loadMessages();
+  // Try to connect + load messages; retry once if first attempt fails
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await ensureSession();
+      if (useAPI && sessionId) {
+        await loadMessages();
+        break;
+      }
+    } catch (e) {
+      console.warn('[init] attempt', attempt, 'failed:', e);
+      if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  // Auto-connect if credentials were saved (restores API key/URL to backend)
+  try {
+    const savedPass = document.getElementById('setPass').value;
+    const savedURL = document.getElementById('setURL').value;
+    if (savedPass && savedURL) {
+      const body = { password: savedPass };
+      const savedKey = document.getElementById('setKey').value;
+      if (savedKey) body.api_key = savedKey;
+      body.api_base_url = savedURL;
+      await fetch(`${API_BASE}/api/runtime-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': savedPass },
+        body: JSON.stringify(body),
+      });
+      await loadModelList();
+      const status = document.getElementById('connectStatus');
+      if (status) status.textContent = '已自动连接';
+    }
+  } catch {}
   await loadStickers();
   scrollToBottom();
 }
