@@ -66,7 +66,8 @@
 
 **未完成/卡住：**
 - **system-prompt.md重写** — 最高优先！当前第三人称设定卡导致模型纯角色扮演，thinking暴露。需改成第一人称自述+CLAUDE.md风格
-- **确认VPS重启后状态** — 最后一次她重启了还没确认pm2有没有自动起来
+- **⚠️ 加swap！** — 她还没跑swap命令，重启后内存不够node起不来。第一件事：`sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile && echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab`
+- **确认VPS重启后状态** — pm2可能起不来（没swap），加完swap后 `npx pm2 start index.js --name linmiao && npx pm2 save`
 - **确认thinking生效** — ENABLE_THINKING已加到.env，需要前端测试
 - **对话历史持久化** — 刷新消息全丢（数据在Supabase里没丢，前端不加载）
 - nginx反向代理+HTTPS：还没配（目前直接访问:3000，浏览器显示"不安全"）
