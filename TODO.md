@@ -23,11 +23,12 @@
 ### 最高优先——核心体验
 
 - [ ] system prompt重写（第一人称自述，解决角色扮演问题）
-- [ ] 工具调用框架（agent循环：定义tools→模型调用→后端执行→返回结果）
-  - [ ] 读记忆文件（查库：小苗记忆.md、CLAUDE.md）
+- [ ] 时间感知强化（后端buildTimeContext已有，需system prompt让模型加时间戳、感知间隔）
+- [x] 工具调用框架（agent循环：定义tools→模型调用→后端执行→返回结果）
+  - [x] 读记忆文件（查库：小苗记忆.md、CLAUDE.md）
   - [ ] 联网读URL（WebFetch）
   - [ ] 发表情包（从数据库匹配表情，灵活版）
-- [ ] 禁止幻觉工具/编造（system prompt限制）
+- [x] 禁止幻觉工具/编造（system prompt限制）
 
 ### 高优先——多媒体
 
