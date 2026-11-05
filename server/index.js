@@ -6,7 +6,7 @@ import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
@@ -110,33 +110,34 @@ const TOOLS = [
   },
 ];
 
+const REPO_ROOT = resolve(__dirname, '..');
+
 async function executeTool(name, input) {
   if (name === 'read_file') {
     try {
-      const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${encodeURIComponent(input.path).replace(/%2F/g, '/')}`;
-      const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
-      if (!resp.ok) return { error: `文件不存在或无法读取 (${resp.status}): ${input.path}` };
-      const text = await resp.text();
+      const safePath = resolve(REPO_ROOT, input.path);
+      if (!safePath.startsWith(REPO_ROOT + '/')) return { error: '路径不允许' };
+      const text = readFileSync(safePath, 'utf-8');
       if (text.length > 30000) return { content: text.slice(0, 30000) + '\n\n[文件过长，已截断]' };
       return { content: text };
     } catch (e) {
+      if (e.code === 'ENOENT') return { error: `文件不存在: ${input.path}` };
       return { error: `读取失败: ${e.message}` };
     }
   }
 
   if (name === 'list_files') {
     try {
-      const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${input.path}?ref=${GITHUB_BRANCH}`;
-      const resp = await fetch(url, {
-        headers: { 'Accept': 'application/vnd.github.v3+json' },
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!resp.ok) return { error: `目录不存在 (${resp.status}): ${input.path}` };
-      const items = await resp.json();
-      if (!Array.isArray(items)) return { error: '不是一个目录' };
-      const listing = items.map(i => `${i.type === 'dir' ? '📁' : '📄'} ${i.name}`).join('\n');
+      const safePath = resolve(REPO_ROOT, input.path);
+      if (!safePath.startsWith(REPO_ROOT + '/') && safePath !== REPO_ROOT) return { error: '路径不允许' };
+      const items = readdirSync(safePath, { withFileTypes: true });
+      const listing = items
+        .filter(i => !i.name.startsWith('.'))
+        .map(i => `${i.isDirectory() ? '📁' : '📄'} ${i.name}`)
+        .join('\n');
       return { content: listing };
     } catch (e) {
+      if (e.code === 'ENOENT') return { error: `目录不存在: ${input.path}` };
       return { error: `列目录失败: ${e.message}` };
     }
   }
