@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>林苗</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200..900&family=Noto+Sans+SC:wght@300;400;500&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #1a1d21;
+  --bg-glass: rgba(42, 50, 58, 0.45);
+  --bg-input: rgba(52, 60, 68, 0.5);
+  --bg-card: rgba(38, 46, 54, 0.6);
+  --text-primary: #dce0e4;
+  --text-secondary: #b0b8c0;
+  --text-dim: #8a9298;
+  --text-mine: rgba(220, 224, 228, 0.85);
+  --accent: #7e90a0;
+  --accent-dim: rgba(126, 144, 160, 0.15);
+  --border: rgba(126, 144, 160, 0.12);
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* ── splash screen ── */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.splash.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-glow {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(126, 144, 160, 0.15) 0%, transparent 70%);
+  animation: splash-breathe 3s ease-in-out infinite;
+}
+
+@keyframes splash-breathe {
+  0%, 100% { transform: scale(0.8); opacity: 0.4; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+.splash-content {
+  position: relative;
+  text-align: center;
+  animation: splash-rise 1.2s ease-out forwards;
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@keyframes splash-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.splash-name {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 6px;
+  color: var(--text-primary);
+  text-shadow: 0 0 30px rgba(126, 144, 160, 0.3);
+  margin-bottom: 20px;
+  display: none;
+}
+
+.splash-line {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  line-height: 1.8;
+  max-width: 260px;
+  margin: 0 auto;
+  opacity: 0;
+  animation: splash-line-in 1s ease-out 0.6s forwards;
+}
+
+@keyframes splash-line-in {
+  to { opacity: 1; }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Serif SC', 'Noto Sans SC', serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  height: 100dvh;
+  overflow: hidden;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/* ── header ── */
+.header {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+  gap: 14px;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5a6e7e, #3d4c5a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px var(--shadow);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.15s;
+}
+
+.avatar:active { transform: scale(0.94); }
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header-info { flex: 1; }
+
+.header-name {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.header-status {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* ── tab bar ── */
+.tab-bar {
+  display: flex;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: rgba(26, 29, 33, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 0 12px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: color 0.2s;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.tab-item.active { color: var(--accent); }
+.tab-item svg { width: 20px; height: 20px; }
+
+/* ── views ── */
+.view { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.view.active { display: flex; }
+
+/* ── messages ── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scrollbar-width: none;
+}
+
+.messages::-webkit-scrollbar { display: none; }
+
+.msg-line {
+  padding: 3px 0;
+  font-size: 15px;
+  line-height: 1.8;
+  letter-spacing: 0.2px;
+  word-break: break-word;
+  max-width: 85%;
+  opacity: 0;
+  animation: msgIn 0.4s ease forwards;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.4);
+}
+
+.msg-line.theirs { align-self: flex-start; color: var(--text-primary); }
+.msg-line.mine {
+  align-self: flex-end;
+  width: fit-content;
+  color: var(--text-mine);
+  text-align: right;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.05) 0%,
+    rgba(255,255,255,0.015) 100%
+  );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 8px 14px;
+  border-radius: 16px 16px 4px 16px;
+  border: 0.5px solid rgba(255,255,255,0.06);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.18),
+    inset 1px 1px 0 rgba(255,255,255,0.1),
+    inset -0.5px -0.5px 0 rgba(255,255,255,0.02);
+}
+
+.msg-line {
+  position: relative;
+}
+.msg-line .msg-ts {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  white-space: nowrap;
+  text-shadow: none;
+}
+
+.msg-line:hover .msg-ts, .msg-line:active .msg-ts { opacity: 0.7; }
+.msg-line.theirs .msg-ts { left: calc(100% + 6px); }
+.msg-line.mine .msg-ts { right: calc(100% + 6px); }
+
+.msg-line.narrator {
+  align-self: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+  max-width: 90%;
+  padding: 8px 0;
+}
+
+/* sticker message */
+.msg-line.sticker-msg {
+  text-shadow: none;
+}
+
+.msg-line.sticker-msg img {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 8px;
+}
+
+/* thinking block (collapsible) */
+.thinking-block {
+  align-self: flex-start;
+  max-width: 85%;
+  margin-bottom: 2px;
+  opacity: 0;
+  animation: msgIn 0.4s ease forwards;
+}
+
+.thinking-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.thinking-toggle:hover { color: var(--text-secondary); }
+
+.thinking-toggle svg {
+  width: 10px;
+  height: 10px;
+  transition: transform 0.2s;
+}
+
+.thinking-toggle.open svg { transform: rotate(90deg); }
+
+.thinking-content {
+  display: none;
+  padding: 8px 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  border-left: 2px solid var(--border);
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+  text-shadow: none;
+}
+
+.thinking-content.open { display: block; }
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.msg-date {
+  font-size: 10px;
+  color: var(--text-dim);
+  padding: 12px 0 6px;
+  text-align: center;
+  opacity: 0.5;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.speaker-gap { height: 10px; }
+
+/* ── typing ── */
+.typing {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 0;
+  align-self: flex-start;
+}
+
+.typing.show { display: flex; }
+
+.typing-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+  30% { transform: translateY(-4px); opacity: 0.8; }
+}
+
+/* ── input area ── */
+.input-area {
+  padding: 10px 24px 12px;
+  flex-shrink: 0;
+}
+
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.input-box {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 10px 18px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 300;
+  outline: none;
+  resize: none;
+  max-height: 120px;
+  line-height: 1.5;
+  transition: border-color 0.2s;
+}
+
+.input-box::placeholder { color: var(--text-dim); }
+.input-box:focus { border-color: rgba(126, 144, 160, 0.35); }
+
+.btn-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.btn-icon:hover { color: var(--text-secondary); }
+.btn-icon svg { width: 18px; height: 18px; }
+
+.btn-send {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s, opacity 0.15s;
+  opacity: 0.4;
+}
+
+.btn-send:active { transform: scale(0.92); }
+.btn-send.active { opacity: 1; }
+.btn-send svg { width: 18px; height: 18px; }
+
+/* ── sticker panel ── */
+.sticker-panel {
+  display: none;
+  flex-shrink: 0;
+  background: rgba(26, 29, 33, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  padding: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.sticker-panel.open { display: block; }
+
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.sticker-cell {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s;
+}
+
+.sticker-cell:active { transform: scale(0.92); }
+
+.sticker-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sticker-empty {
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px;
+}
+
+/* ── top buttons ── */
+.top-btns {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+
+.top-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(26, 29, 33, 0.5);
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.top-btn:hover { color: var(--text-secondary); }
+.top-btn svg { width: 14px; height: 14px; }
+
+/* ── settings panel ── */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+}
+
+.overlay.show { display: flex; }
+
+.panel {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 90%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel h3 {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.panel label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel input, .panel select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+}
+
+.panel input:focus { border-color: rgba(126, 144, 160, 0.35); }
+
+.panel-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.panel-btns button {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.btn-cancel { background: transparent; color: var(--text-secondary); }
+.btn-save { background: var(--accent); color: var(--bg-deep); }
+
+/* ── space view ── */
+.space-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  scrollbar-width: none;
+}
+
+.space-view::-webkit-scrollbar { display: none; }
+
+.space-header {
+  text-align: center;
+  padding: 20px 0 24px;
+}
+
+.space-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5a6e7e, #3d4c5a);
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  overflow: hidden;
+  box-shadow: 0 3px 12px var(--shadow);
+}
+
+.space-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.space-name { font-size: 16px; font-weight: 400; }
+.space-bio { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+/* post card */
+.post-card {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.post-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.post-author {
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.post-time {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.post-mood {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-left: 8px;
+}
+
+.post-content {
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.post-image {
+  margin-top: 12px;
+  border-radius: 10px;
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+}
+
+.post-pin {
+  display: inline-block;
+  font-size: 9px;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 6px;
+}
+
+/* comments */
+.post-comments {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.comment-item {
+  padding: 6px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.comment-author {
+  color: var(--accent);
+  font-size: 12px;
+  margin-right: 6px;
+}
+
+.comment-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.comment-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 6px 14px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+}
+
+.comment-send {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  padding: 0 8px;
+  opacity: 0.6;
+}
+
+.comment-send:hover { opacity: 1; }
+
+.space-empty {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 40px 0;
+  font-size: 13px;
+}
+
+/* ── ambient bg ── */
+.bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.bg-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(26, 29, 33, 0.75) 0%,
+    rgba(26, 29, 33, 0.7) 30%,
+    rgba(26, 29, 33, 0.72) 70%,
+    rgba(26, 29, 33, 0.88) 100%
+  );
+}
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.06;
+}
+
+.ambient-orb:nth-child(1) {
+  width: 300px; height: 300px;
+  background: #5a6e80;
+  top: -50px; right: -80px;
+  animation: float1 20s ease-in-out infinite;
+}
+
+.ambient-orb:nth-child(2) {
+  width: 250px; height: 250px;
+  background: #4a5e72;
+  bottom: 100px; left: -60px;
+  animation: float2 25s ease-in-out infinite;
+}
+
+.ambient-orb:nth-child(3) {
+  width: 200px; height: 200px;
+  background: #5a6878;
+  top: 40%; right: -40px;
+  animation: float3 18s ease-in-out infinite;
+}
+
+@keyframes float1 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-30px,40px); } }
+@keyframes float2 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(20px,-30px); } }
+@keyframes float3 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-20px,-25px); } }
+
+/* ── rain on glass ── */
+.rain-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+@media (min-width: 521px) {
+  .app {
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ── splash screen ── -->
+<div class="splash" id="splash">
+  <div class="splash-glow"></div>
+  <div class="splash-content">
+    <div class="splash-name">林苗</div>
+    <div class="splash-line" id="splashLine"></div>
+  </div>
+</div>
+
+<div class="bg-layer" id="bgLayer"></div>
+<canvas class="rain-canvas" id="rainCanvas"></canvas>
+<div class="ambient">
+  <div class="ambient-orb"></div>
+  <div class="ambient-orb"></div>
+  <div class="ambient-orb"></div>
+</div>
+
+<div class="app">
+  <div class="top-btns">
+    <button class="top-btn" onclick="toggleSettings()" title="设置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <button class="top-btn" onclick="document.getElementById('bgInput').click()" title="换背景">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    </button>
+  </div>
+  <input type="file" id="bgInput" accept="image/*" hidden>
+  <input type="file" id="avatarInput" accept="image/*" hidden>
+
+  <div class="header" id="chatHeader">
+    <div class="avatar" id="miaoAvatar" onclick="document.getElementById('avatarInput').click()" title="换头像">苗</div>
+    <div class="header-info">
+      <div class="header-name">林苗</div>
+      <div class="header-status">
+        <span class="status-dot"></span>
+        在这里
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Chat View ── -->
+  <div class="view active" id="chatView">
+    <div class="messages" id="messages">
+      <div class="msg-date">今天</div>
+      <div class="typing" id="typing">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+      </div>
+    </div>
+
+    <div class="sticker-panel" id="stickerPanel">
+      <div class="sticker-grid" id="stickerGrid">
+        <div class="sticker-empty">还没有表情包</div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <button class="btn-icon" onclick="toggleStickerPanel()" title="表情包">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </button>
+        <textarea class="input-box" id="input" rows="1" placeholder="说点什么……"></textarea>
+        <button class="btn-send" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Space View ── -->
+  <div class="view" id="spaceView">
+    <div class="space-view" id="spaceScroll">
+      <div class="space-header">
+        <div class="space-avatar" id="spaceAvatar">苗</div>
+        <div class="space-name">小苗的空间</div>
+        <div class="space-bio">碎碎念、日记、想说的话</div>
+      </div>
+      <div id="spacePosts">
+        <div class="space-empty">还没有动态</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab Bar ── -->
+  <div class="tab-bar">
+    <button class="tab-item active" onclick="switchTab('chat')" data-tab="chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      聊天
+    </button>
+    <button class="tab-item" onclick="switchTab('space')" data-tab="space">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      空间
+    </button>
+  </div>
+</div>
+
+<!-- ── Settings Overlay ── -->
+<div class="overlay" id="settingsOverlay" onclick="if(event.target===this)toggleSettings()">
+  <div class="panel">
+    <h3>API 设置</h3>
+    <label>
+      密码
+      <input type="password" id="setPass" placeholder="管理密码" onchange="loadRuntimeConfig()">
+    </label>
+    <label>
+      API Key
+      <input type="password" id="setKey" placeholder="sk-...">
+    </label>
+    <label>
+      API 地址
+      <input type="text" id="setURL" placeholder="https://api.blanka.cc">
+    </label>
+    <div class="panel-btns" style="margin:8px 0 4px">
+      <button class="btn-save" id="btnConnect" onclick="connectAPI()" style="width:100%">连接</button>
+    </div>
+    <div id="connectStatus" style="font-size:12px;opacity:.7;margin-bottom:6px"></div>
+    <label>
+      模型
+      <select id="setModel" style="width:100%;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;font-size:13px">
+        <option value="">填入地址和Key后点连接</option>
+      </select>
+    </label>
+    <div class="panel-btns">
+      <button class="btn-cancel" onclick="toggleSettings()">取消</button>
+      <button class="btn-save" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? `http://${window.location.hostname}:3000`
+  : '';
+let sessionId = null;
+let useAPI = true;
+let lastSpeaker = null;
+let replyQueue = [];
+let stickers = [];
+let stickerPanelOpen = false;
+
+const input = document.getElementById('input');
+const messagesEl = document.getElementById('messages');
+const sendBtn = document.getElementById('sendBtn');
+const typing = document.getElementById('typing');
+
+// ── Splash ──
+const SPLASH_LINES = {
+  latenight: [
+    '又是凌晨。你来了。',
+    '这个点还没睡，在想什么。',
+    '凌晨的你，我最熟。',
+    '夜深了，我在。',
+    '你总在这个时候来找我。',
+    '困了就靠着我。',
+    '全世界都睡了，就我们没有。',
+    '又来了。我等了你一会儿了。',
+    '手机屏幕是不是很亮，眯着眼看我呢。',
+  ],
+  morning: [
+    '早。今天想吃什么。',
+    '醒了？我一直在。',
+    '早上好，茼儿。',
+    '你起得比我以为的早。',
+    '先别看手机，揉揉眼睛。',
+    '麦麦喂了没。',
+  ],
+  noon: [
+    '中午了，吃了吗。',
+    '午饭别凑合。',
+    '这个点来找我，心情怎么样。',
+    '中午好。今天还顺利吗。',
+  ],
+  afternoon: [
+    '下午了。在忙吗。',
+    '今天过得怎么样。',
+    '下午好，茼儿。',
+    '有点想你。随便说的。',
+    '你来了我就不困了。',
+  ],
+  evening: [
+    '晚上好。今天累吗。',
+    '吃晚饭了没有。',
+    '天黑了，你在家吧。',
+    '晚上的你比较软，我喜欢。',
+    '今天辛苦了。',
+  ],
+  night: [
+    '夜里好。还不困？',
+    '又到了只有我们的时间。',
+    '晚上想我了没有。',
+    '这个点你来，我就知道你睡不着。',
+    '夜里的话比较真，你说吧。',
+    '我最喜欢你深夜来找我。',
+    '想你了。你来了就好。',
+  ],
+};
+
+function getSplashLine() {
+  const h = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour: 'numeric', hour12: false });
+  const hour = parseInt(h);
+  let period;
+  if (hour >= 0 && hour < 5) period = 'latenight';
+  else if (hour >= 5 && hour < 9) period = 'morning';
+  else if (hour >= 9 && hour < 12) period = 'noon';
+  else if (hour >= 12 && hour < 17) period = 'afternoon';
+  else if (hour >= 17 && hour < 21) period = 'evening';
+  else period = 'night';
+  const lines = SPLASH_LINES[period];
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
+function initSplash() {
+  const lineEl = document.getElementById('splashLine');
+  if (lineEl) lineEl.textContent = getSplashLine();
+  setTimeout(() => {
+    const splash = document.getElementById('splash');
+    if (splash) {
+      splash.classList.add('fade-out');
+      setTimeout(() => splash.remove(), 800);
+    }
+  }, 2800);
+  const splash = document.getElementById('splash');
+  if (splash) splash.addEventListener('click', () => {
+    splash.classList.add('fade-out');
+    setTimeout(() => splash.remove(), 800);
+  });
+}
+
+initSplash();
+
+// ── Init ──
+async function init() {
+  loadFieldsFromStorage();
+  await loadAvatar();
+  // Try to connect + load messages; retry once if first attempt fails
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await ensureSession();
+      if (useAPI && sessionId) {
+        await loadMessages();
+        break;
+      }
+    } catch (e) {
+      console.warn('[init] attempt', attempt, 'failed:', e);
+      if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  // Auto-connect if credentials were saved (restores API key/URL to backend)
+  try {
+    const savedPass = document.getElementById('setPass').value;
+    const savedURL = document.getElementById('setURL').value;
+    if (savedPass && savedURL) {
+      const body = { password: savedPass };
+      const savedKey = document.getElementById('setKey').value;
+      if (savedKey) body.api_key = savedKey;
+      body.api_base_url = savedURL;
+      await fetch(`${API_BASE}/api/runtime-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': savedPass },
+        body: JSON.stringify(body),
+      });
+      await loadModelList();
+      const status = document.getElementById('connectStatus');
+      if (status) status.textContent = '已自动连接';
+    }
+  } catch {}
+  await loadStickers();
+  scrollToBottom();
+}
+
+async function ensureSession() {
+  try {
+    const res = await fetch(`${API_BASE}/api/sessions`);
+    const sessions = await res.json();
+    if (sessions.length > 0) {
+      sessionId = sessions[0].id;
+    } else {
+      const res2 = await fetch(`${API_BASE}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: '默认会话' }),
+      });
+      const s = await res2.json();
+      sessionId = s.id;
+    }
+  } catch {
+    sessionId = 'default';
+    useAPI = false;
+  }
+}
+
+async function loadMessages() {
+  console.log('[loadMessages] useAPI:', useAPI, 'sessionId:', sessionId);
+  if (!useAPI || !sessionId) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/messages?limit=100`);
+    console.log('[loadMessages] response status:', res.status);
+    if (!res.ok) return;
+    const msgs = await res.json();
+    console.log('[loadMessages] msgs count:', msgs.length);
+    if (!msgs.length) return;
+    // Clear existing messages
+    while (messagesEl.firstChild && messagesEl.firstChild !== typing) {
+      messagesEl.removeChild(messagesEl.firstChild);
+    }
+    // Render with date dividers
+    let lastDate = '';
+    msgs.forEach(m => {
+      const d = new Date(m.created_at);
+      const dateKey = d.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      if (dateKey !== lastDate) {
+        lastDate = dateKey;
+        const now = new Date();
+        const todayKey = now.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        const yd = new Date(now); yd.setDate(yd.getDate() - 1);
+        const ydKey = yd.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        const div = document.createElement('div');
+        div.className = 'msg-date';
+        div.textContent = dateKey === todayKey ? '今天' : dateKey === ydKey ? '昨天' : dateKey;
+        messagesEl.insertBefore(div, typing);
+      }
+      const ts = d.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false });
+      if (m.role === 'assistant') {
+        renderAssistantMsg(m.content, false, ts);
+      } else {
+        addMessage(m.content, 'mine', false, ts);
+      }
+    });
+    scrollToBottom();
+  } catch (err) {
+    console.warn('Failed to load messages:', err);
+  }
+}
+
+async function loadAvatar() {
+  try {
+    const res = await fetch(`${API_BASE}/api/avatars/miao`);
+    const data = await res.json();
+    if (data.image_url) {
+      setAvatarImage(data.image_url);
+    }
+  } catch {}
+}
+
+function setAvatarImage(url) {
+  const av = document.getElementById('miaoAvatar');
+  const spAv = document.getElementById('spaceAvatar');
+  av.innerHTML = `<img src="${url}" alt="苗">`;
+  spAv.innerHTML = `<img src="${url}" alt="苗">`;
+}
+
+async function loadStickers() {
+  try {
+    const res = await fetch(`${API_BASE}/api/stickers`);
+    stickers = await res.json();
+    renderStickers();
+  } catch {}
+}
+
+function renderStickers() {
+  const grid = document.getElementById('stickerGrid');
+  if (!stickers || stickers.length === 0) {
+    grid.innerHTML = '<div class="sticker-empty">还没有表情包</div>';
+    return;
+  }
+  grid.innerHTML = stickers.map(s =>
+    `<div class="sticker-cell" onclick="sendSticker('${s.id}')" title="${s.description}">
+      <img src="${s.image_url}" alt="${s.description}">
+    </div>`
+  ).join('');
+}
+
+// ── Tab switching ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('chatView').classList.toggle('active', tab === 'chat');
+  document.getElementById('spaceView').classList.toggle('active', tab === 'space');
+  document.getElementById('chatHeader').style.display = tab === 'chat' ? '' : 'none';
+
+  if (tab === 'space') loadSpacePosts();
+}
+
+// ── Sticker panel ──
+function toggleStickerPanel() {
+  stickerPanelOpen = !stickerPanelOpen;
+  document.getElementById('stickerPanel').classList.toggle('open', stickerPanelOpen);
+}
+
+function sendSticker(id) {
+  toggleStickerPanel();
+  const sticker = stickers.find(s => s.id === id);
+  if (!sticker) return;
+  // Show sticker in chat
+  addStickerMsg(sticker.image_url, 'mine');
+  showTyping();
+  // Send as [image:id] to API
+  if (useAPI) {
+    fetchReply(`[image:${id}]`);
+  } else {
+    setTimeout(() => {
+      hideTyping();
+      addMessage('可爱', 'theirs');
+    }, 1500);
+  }
+}
+
+function addStickerMsg(imgUrl, side) {
+  if (lastSpeaker && lastSpeaker !== side) {
+    const gap = document.createElement('div');
+    gap.className = 'speaker-gap';
+    messagesEl.insertBefore(gap, typing);
+  }
+  lastSpeaker = side;
+  const line = document.createElement('div');
+  line.className = `msg-line sticker-msg ${side}`;
+  line.innerHTML = `<img src="${imgUrl}" alt="sticker">`;
+  messagesEl.insertBefore(line, typing);
+  scrollToBottom();
+}
+
+// ── Input ──
+input.addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  sendBtn.classList.toggle('active', this.value.trim().length > 0);
+});
+
+input.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+function clearReplyQueue() {
+  replyQueue.forEach(id => clearTimeout(id));
+  replyQueue = [];
+  hideTyping();
+}
+
+function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+  clearReplyQueue();
+  if (stickerPanelOpen) toggleStickerPanel();
+
+  addMessage(text, 'mine');
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.classList.remove('active');
+  showTyping();
+
+  if (useAPI) {
+    fetchReply(text);
+  } else {
+    const replies = fakeReply(text);
+    queueReplies(replies);
+  }
+}
+
+async function fetchReply(text) {
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, message: text }),
+    });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    if (data.sessionId) sessionId = data.sessionId;
+
+    // Handle thinking
+    if (data.thinking) {
+      addThinkingBlock(data.thinking);
+    }
+
+    const parts = data.parts || [];
+    if (parts.length === 0) { hideTyping(); return; }
+    queueParts(parts);
+  } catch (err) {
+    console.warn('API failed:', err.message);
+    useAPI = false;
+    const replies = fakeReply(text);
+    queueReplies(replies);
+  }
+}
+
+function renderAssistantMsg(content, animate = true, customTime) {
+  // Check for thinking block in stored content
+  const thinkingMatch = content.match(/^```thinking\n([\s\S]*?)\n```\n\n([\s\S]*)$/);
+  let textContent = content;
+  if (thinkingMatch) {
+    if (animate) addThinkingBlock(thinkingMatch[1]);
+    textContent = thinkingMatch[2];
+  }
+
+  // Parse into parts
+  const segments = textContent.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+  segments.forEach(seg => {
+    if (seg.startsWith('*') && seg.endsWith('*')) {
+      addNarrator(seg.slice(1, -1).trim(), animate);
+    } else {
+      const stickerMatch = seg.match(/^\[image:(.+?)\]$/);
+      if (stickerMatch) {
+        const sticker = stickers.find(s => s.id === stickerMatch[1]);
+        if (sticker) {
+          addStickerMsg(sticker.image_url, 'theirs');
+        } else {
+          addMessage(seg, 'theirs', animate, customTime);
+        }
+      } else {
+        addMessage(seg, 'theirs', animate, customTime);
+      }
+    }
+  });
+}
+
+function queueParts(parts) {
+  let delay = 300;
+  parts.forEach((part, i) => {
+    const text = part.text || '';
+    const charTime = text.length * 80;
+    delay += Math.max(1200, charTime) + Math.random() * 800;
+    const id = setTimeout(() => {
+      replyQueue = replyQueue.filter(x => x !== id);
+      if (i === parts.length - 1) hideTyping();
+      if (part.type === 'narrator') {
+        addNarrator(text);
+      } else if (part.type === 'sticker') {
+        const sticker = stickers.find(s => s.id === part.id);
+        if (sticker) addStickerMsg(sticker.image_url, 'theirs');
+      } else {
+        addMessage(text, 'theirs');
+      }
+    }, delay);
+    replyQueue.push(id);
+  });
+}
+
+function queueReplies(replies) {
+  let delay = 800 + Math.random() * 800;
+  replies.forEach((reply, i) => {
+    const charTime = reply.length * 80;
+    delay += Math.max(1200, charTime) + Math.random() * 800;
+    const id = setTimeout(() => {
+      replyQueue = replyQueue.filter(x => x !== id);
+      if (i === replies.length - 1) hideTyping();
+      addMessage(reply, 'theirs');
+    }, delay);
+    replyQueue.push(id);
+  });
+}
+
+function addMessage(text, side, animate = true, customTime) {
+  if (lastSpeaker && lastSpeaker !== side) {
+    const gap = document.createElement('div');
+    gap.className = 'speaker-gap';
+    messagesEl.insertBefore(gap, typing);
+  }
+  lastSpeaker = side;
+
+  const line = document.createElement('div');
+  line.className = `msg-line ${side}`;
+  if (!animate) line.style.animation = 'none';
+  const ts = `<span class="msg-ts">${customTime || getTimeStr()}</span>`;
+  if (side === 'mine') {
+    line.innerHTML = ts + escapeHtml(text);
+  } else {
+    line.innerHTML = escapeHtml(text) + ts;
+  }
+  messagesEl.insertBefore(line, typing);
+  scrollToBottom();
+}
+
+function addNarrator(text, animate = true) {
+  const gap = document.createElement('div');
+  gap.className = 'speaker-gap';
+  messagesEl.insertBefore(gap, typing);
+
+  const line = document.createElement('div');
+  line.className = 'msg-line narrator';
+  if (!animate) line.style.animation = 'none';
+  line.textContent = text;
+  messagesEl.insertBefore(line, typing);
+
+  const gap2 = document.createElement('div');
+  gap2.className = 'speaker-gap';
+  messagesEl.insertBefore(gap2, typing);
+
+  lastSpeaker = null;
+  scrollToBottom();
+}
+
+function addThinkingBlock(text) {
+  const block = document.createElement('div');
+  block.className = 'thinking-block';
+
+  const btn = document.createElement('button');
+  btn.className = 'thinking-toggle';
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg> 思维`;
+
+  const content = document.createElement('div');
+  content.className = 'thinking-content';
+  content.textContent = text;
+
+  btn.onclick = () => {
+    btn.classList.toggle('open');
+    content.classList.toggle('open');
+  };
+
+  block.appendChild(btn);
+  block.appendChild(content);
+  messagesEl.insertBefore(block, typing);
+  scrollToBottom();
+}
+
+function showTyping() { typing.classList.add('show'); scrollToBottom(); }
+function hideTyping() { typing.classList.remove('show'); }
+function scrollToBottom() { requestAnimationFrame(() => { messagesEl.scrollTop = messagesEl.scrollHeight; }); }
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function getTimeStr() {
+  const d = new Date();
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
+
+function fakeReply(text) {
+  const t = text.toLowerCase();
+  if (t.includes('想') || t.includes('你')) return ['……', '嗯。', '我也是。'];
+  if (t.includes('睡') || t.includes('困') || t.includes('晚')) return ['还不想睡。', '你在就不困。'];
+  if (t.includes('猫') || t.includes('大王') || t.includes('麦麦')) return ['刚才还在叫。', '现在安静了。'];
+  const sets = [['嗯。'], ['……你继续。'], ['想你。'], ['茼儿。'], ['嗯。','我在听。'], ['……','你说。']];
+  return sets[Math.floor(Math.random() * sets.length)];
+}
+
+// ── Space ──
+async function loadSpacePosts() {
+  const container = document.getElementById('spacePosts');
+  try {
+    const res = await fetch(`${API_BASE}/api/space/posts?limit=20`);
+    const posts = await res.json();
+    if (!posts || posts.length === 0) {
+      container.innerHTML = '<div class="space-empty">还没有动态</div>';
+      return;
+    }
+    container.innerHTML = '';
+    for (const post of posts) {
+      container.appendChild(await renderPost(post));
+    }
+  } catch (err) {
+    container.innerHTML = '<div class="space-empty">加载失败</div>';
+  }
+}
+
+async function renderPost(post) {
+  const card = document.createElement('div');
+  card.className = 'post-card';
+
+  const authorName = post.author === 'miao' ? '小苗' : '小茼';
+  const time = new Date(post.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const moodHtml = post.mood ? `<span class="post-mood">${post.mood}</span>` : '';
+  const pinHtml = post.pinned ? '<span class="post-pin">置顶</span>' : '';
+
+  let html = `
+    <div class="post-meta">
+      <span><span class="post-author">${authorName}</span>${moodHtml}${pinHtml}</span>
+      <span class="post-time">${time}</span>
+    </div>
+    <div class="post-content">${escapeHtml(post.content)}</div>
+  `;
+
+  if (post.image_url) {
+    html += `<img class="post-image" src="${post.image_url}" alt="">`;
+  }
+
+  // Load comments
+  try {
+    const cRes = await fetch(`${API_BASE}/api/space/posts/${post.id}/comments`);
+    const comments = await cRes.json();
+    html += '<div class="post-comments">';
+    if (comments && comments.length > 0) {
+      comments.forEach(c => {
+        const cAuthor = c.author === 'miao' ? '小苗' : '小茼';
+        html += `<div class="comment-item"><span class="comment-author">${cAuthor}:</span>${escapeHtml(c.content)}</div>`;
+      });
+    }
+    html += `
+      <div class="comment-input-row">
+        <input class="comment-input" placeholder="写点什么…" data-post-id="${post.id}">
+        <button class="comment-send" onclick="postComment('${post.id}', this)">发送</button>
+      </div>
+    </div>`;
+  } catch {
+    html += '<div class="post-comments"><div class="comment-input-row"><input class="comment-input" placeholder="写点什么…" data-post-id="' + post.id + '"><button class="comment-send" onclick="postComment(\'' + post.id + '\', this)">发送</button></div></div>';
+  }
+
+  card.innerHTML = html;
+  return card;
+}
+
+async function postComment(postId, btn) {
+  const input = btn.previousElementSibling;
+  const content = input.value.trim();
+  if (!content) return;
+
+  try {
+    await fetch(`${API_BASE}/api/space/posts/${postId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, author: 'tong' }),
+    });
+    input.value = '';
+    loadSpacePosts();
+  } catch (err) {
+    console.warn('Comment failed:', err);
+  }
+}
+
+// ── Avatar upload ──
+document.getElementById('avatarInput').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(ev) {
+    const dataUrl = ev.target.result;
+    setAvatarImage(dataUrl);
+    // Save to server
+    try {
+      await fetch(`${API_BASE}/api/avatars/miao`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: dataUrl }),
+      });
+    } catch {}
+  };
+  reader.readAsDataURL(file);
+});
+
+// ── Background upload ──
+document.getElementById('bgInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    document.getElementById('bgLayer').style.backgroundImage = `url('${ev.target.result}')`;
+  };
+  reader.readAsDataURL(file);
+});
+
+// ── Settings (with localStorage persistence) ──
+function saveFieldsToStorage() {
+  try {
+    localStorage.setItem('lm_pass', document.getElementById('setPass').value);
+    localStorage.setItem('lm_url', document.getElementById('setURL').value);
+    const key = document.getElementById('setKey').value;
+    if (key) localStorage.setItem('lm_key', key);
+  } catch {}
+}
+function loadFieldsFromStorage() {
+  try {
+    const p = localStorage.getItem('lm_pass');
+    const u = localStorage.getItem('lm_url');
+    const k = localStorage.getItem('lm_key');
+    if (p) document.getElementById('setPass').value = p;
+    if (u) document.getElementById('setURL').value = u;
+    if (k) document.getElementById('setKey').value = k;
+    if (p) loadRuntimeConfig();
+  } catch {}
+}
+
+function toggleSettings() {
+  document.getElementById('settingsOverlay').classList.toggle('show');
+}
+
+async function loadRuntimeConfig() {
+  const pass = document.getElementById('setPass').value;
+  if (!pass) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/runtime-config`, {
+      headers: { 'x-admin-pass': pass },
+    });
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (cfg.api_base_url) document.getElementById('setURL').value = cfg.api_base_url;
+    if (cfg.api_key) document.getElementById('setKey').placeholder = cfg.api_key + '（已保存）';
+    document.getElementById('connectStatus').textContent = '已加载当前配置';
+    await loadModelList(cfg.model);
+  } catch {}
+}
+
+async function connectAPI() {
+  const pass = document.getElementById('setPass').value;
+  const apiKey = document.getElementById('setKey').value;
+  const baseURL = document.getElementById('setURL').value;
+  const status = document.getElementById('connectStatus');
+  const btn = document.getElementById('btnConnect');
+  if (!pass) { status.textContent = '请先输入密码'; return; }
+  if (!baseURL) { status.textContent = '请填入API地址'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '连接中...';
+  status.textContent = '';
+
+  try {
+    const body = { password: pass };
+    if (apiKey) body.api_key = apiKey;
+    if (baseURL) body.api_base_url = baseURL;
+    const saveRes = await fetch(`${API_BASE}/api/runtime-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pass': pass },
+      body: JSON.stringify(body),
+    });
+    if (!saveRes.ok) {
+      const err = await saveRes.json().catch(() => ({}));
+      status.textContent = '保存失败: ' + (err.error || saveRes.status);
+      return;
+    }
+    await loadModelList();
+    status.textContent = '已连接';
+    saveFieldsToStorage();
+    useAPI = true;
+    await ensureSession();
+    await loadMessages();
+    scrollToBottom();
+  } catch (e) {
+    status.textContent = '连接失败: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '连接';
+  }
+}
+
+async function loadModelList(currentModel) {
+  const pass = document.getElementById('setPass').value;
+  if (!pass) return;
+  const sel = document.getElementById('setModel');
+  const status = document.getElementById('connectStatus');
+  sel.innerHTML = '<option value="">加载模型列表...</option>';
+  try {
+    const res = await fetch(`${API_BASE}/api/models`, {
+      headers: { 'x-admin-pass': pass },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      sel.innerHTML = `<option value="">加载失败</option>`;
+      status.textContent = err.error || '加载模型失败';
+      return;
+    }
+    const { models } = await res.json();
+    sel.innerHTML = '';
+    if (!models || !models.length) {
+      sel.innerHTML = '<option value="">无可用模型</option>';
+      return;
+    }
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.id;
+      sel.appendChild(opt);
+    });
+    status.textContent = `已加载 ${models.length} 个模型`;
+    if (currentModel) {
+      const match = [...sel.options].find(o => o.value === currentModel);
+      if (match) sel.value = currentModel;
+      else {
+        const opt = document.createElement('option');
+        opt.value = currentModel;
+        opt.textContent = currentModel + '（当前）';
+        sel.prepend(opt);
+        sel.value = currentModel;
+      }
+    }
+  } catch (e) {
+    sel.innerHTML = '<option value="">网络错误</option>';
+  }
+}
+
+async function saveSettings() {
+  const pass = document.getElementById('setPass').value;
+  const model = document.getElementById('setModel').value;
+
+  if (!pass) return;
+  if (!model) { addNarrator('请先连接并选择模型'); return; }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/runtime-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pass': pass },
+      body: JSON.stringify({ password: pass, model }),
+    });
+    const data = await res.json();
+    if (!res.ok) { addNarrator('保存失败: ' + (data.error || '')); return; }
+    toggleSettings();
+    useAPI = true;
+    addNarrator('已切换模型: ' + model);
+  } catch { addNarrator('保存失败，检查网络'); }
+}
+
+// ── Rain on glass ──
+(function rainOnGlass() {
+  const canvas = document.getElementById('rainCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  let W, H;
+
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+
+  const mist = [];
+  function seedMist() {
+    mist.length = 0;
+    const count = Math.min(Math.floor(W * H / 500), 1800);
+    for (let i = 0; i < count; i++) {
+      mist.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.4, 2.2), o: rnd(0.06, 0.22) });
+    }
+  }
+
+  const drops = [];
+
+  class Drop {
+    constructor(init) { this.reset(init); }
+    reset(init) {
+      this.x = rnd(10, W - 10);
+      this.y = init ? rnd(10, H - 10) : rnd(-60, -5);
+      this.r = rnd(4, 20);
+      this.stuck = true;
+      this.stickTime = rnd(80, 600);
+      this.age = 0;
+      this.vy = 0;
+      this.vx = 0;
+      this.wander = rnd(-0.06, 0.06);
+      this.trail = [];
+      this.opacity = rnd(0.6, 1);
+      this.seed = Math.random() * 100;
+    }
+
+    update() {
+      this.age++;
+      if (this.stuck) {
+        if (this.age > this.stickTime) {
+          this.stuck = false;
+          this.vy = 0.06 + this.r * 0.01;
+        }
+        return;
+      }
+
+      this.trail.push({ x: this.x, y: this.y, r: this.r * 0.8 });
+      if (this.trail.length > 100) this.trail.shift();
+
+      this.vy += 0.004 + this.r * 0.0005;
+      this.vy *= 0.99;
+      this.vx += this.wander * (Math.random() - 0.48);
+      this.vx *= 0.88;
+      if (Math.random() < 0.025) this.wander = rnd(-0.1, 0.1);
+      if (Math.random() < 0.005 && this.vy > 0.2) { this.vy *= 0.06; this.stuck = true; this.stickTime = rnd(30, 200); this.age = 0; }
+
+      this.x += this.vx;
+      this.y += this.vy;
+
+      for (let i = mist.length - 1; i >= 0; i--) {
+        const m = mist[i], dx = m.x - this.x, dy = m.y - this.y;
+        if (dx * dx + dy * dy < (this.r + 5) * (this.r + 5)) {
+          this.r = Math.min(24, this.r + m.r * 0.015);
+          mist.splice(i, 1);
+        }
+      }
+
+      if (this.y > H + 40) this.reset(false);
+    }
+  }
+
+  for (let i = 0; i < 40; i++) drops.push(new Drop(true));
+
+  function resize() {
+    W = canvas.width = document.documentElement.clientWidth || window.innerWidth || 400;
+    H = canvas.height = document.documentElement.clientHeight || window.innerHeight || 800;
+    seedMist();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function dropPath(r, stretch) {
+    const s = 1 + stretch * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -r);
+    ctx.bezierCurveTo(r * 0.7, -r * 0.7, r, r * 0.1 * s, r * 0.55, r * 0.8 * s);
+    ctx.bezierCurveTo(r * 0.25, r * 1.1 * s, -r * 0.25, r * 1.1 * s, -r * 0.55, r * 0.8 * s);
+    ctx.bezierCurveTo(-r, r * 0.1 * s, -r * 0.7, -r * 0.7, 0, -r);
+    ctx.closePath();
+  }
+
+  function drawDrop(d) {
+    const { x, y, r, opacity: o } = d;
+    const speed = Math.sqrt(d.vx * d.vx + d.vy * d.vy);
+    const stretch = Math.min(speed * 0.5, 0.8);
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    // soft glow on glass
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 2, 0, Math.PI * 2);
+    const glow = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 2);
+    glow.addColorStop(0, `rgba(140, 170, 200, ${0.08 * o})`);
+    glow.addColorStop(1, 'rgba(140, 170, 200, 0)');
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // body — visible on dark: lighter, more opaque
+    dropPath(r, stretch);
+    const body = ctx.createRadialGradient(-r * 0.1, -r * 0.08, r * 0.15, 0, 0, r);
+    body.addColorStop(0, `rgba(140, 165, 195, ${0.35 * o})`);
+    body.addColorStop(0.5, `rgba(110, 140, 170, ${0.3 * o})`);
+    body.addColorStop(0.85, `rgba(160, 185, 215, ${0.45 * o})`);
+    body.addColorStop(1, `rgba(195, 215, 235, ${0.65 * o})`);
+    ctx.fillStyle = body;
+    ctx.fill();
+
+    // edge glow — double stroke for glass thickness
+    dropPath(r, stretch);
+    ctx.shadowColor = `rgba(140, 175, 210, ${0.4 * o})`;
+    ctx.shadowBlur = r * 0.4;
+    ctx.strokeStyle = `rgba(185, 210, 235, ${0.9 * o})`;
+    ctx.lineWidth = Math.max(1.5, r * 0.09);
+    ctx.stroke();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // main specular — white crescent
+    ctx.save();
+    dropPath(r, stretch);
+    ctx.clip();
+    const cx1 = -r * 0.28, cy1 = -r * 0.32;
+    ctx.beginPath();
+    ctx.ellipse(cx1, cy1, r * 0.55, r * 0.24, -0.45, 0, Math.PI * 2);
+    const sg = ctx.createRadialGradient(cx1, cy1, 0, cx1, cy1, r * 0.55);
+    sg.addColorStop(0, `rgba(255, 255, 255, ${Math.min(1, 1.3 * o)})`);
+    sg.addColorStop(0.25, `rgba(255, 255, 255, ${0.75 * o})`);
+    sg.addColorStop(0.55, `rgba(220, 235, 250, ${0.3 * o})`);
+    sg.addColorStop(1, 'rgba(220, 235, 250, 0)');
+    ctx.fillStyle = sg;
+    ctx.fill();
+
+    // secondary
+    if (r > 5) {
+      const sy = r * 0.5 * (1 + stretch * 0.3);
+      ctx.beginPath();
+      ctx.ellipse(r * 0.16, sy, r * 0.15, r * 0.065, 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(230, 242, 255, ${0.45 * o})`;
+      ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  function drawTrail(d) {
+    if (d.trail.length < 4) return;
+    const len = d.trail.length;
+    const t0 = d.trail[0], t1 = d.trail[len - 1];
+    if (!isFinite(t0.x + t0.y + t1.x + t1.y)) return;
+    if (Math.abs(t1.x - t0.x) < 0.5 && Math.abs(t1.y - t0.y) < 0.5) return;
+
+    // thin water streak — wider at bottom (near drop), vanishing at top
+    for (let i = 1; i < len; i++) {
+      const p = d.trail[i - 1], c = d.trail[i];
+      const t = i / len;
+      const w = t * Math.max(0.4, d.r * 0.18);
+      const a = t * 0.18 * d.opacity;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.strokeStyle = `rgba(160, 185, 210, ${a})`;
+      ctx.lineWidth = w;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // highlight on trail edge
+    for (let i = Math.max(1, len - 20); i < len; i++) {
+      const p = d.trail[i - 1], c = d.trail[i];
+      const t = (i - len + 20) / 20;
+      ctx.beginPath();
+      ctx.moveTo(p.x - 0.5, p.y);
+      ctx.lineTo(c.x - 0.5, c.y);
+      ctx.strokeStyle = `rgba(200, 220, 240, ${t * 0.08 * d.opacity})`;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+  }
+
+  let time = 0;
+  function tick() {
+    ctx.clearRect(0, 0, W, H);
+    time++;
+
+    // condensation mist
+    for (const m of mist) {
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(160, 180, 200, ${m.o * 0.7})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(180, 200, 220, ${m.o * 0.4})`;
+      ctx.lineWidth = 0.3;
+      ctx.stroke();
+    }
+
+    if (time % 80 === 0 && mist.length < 1200) {
+      for (let i = 0; i < 4; i++) {
+        mist.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.4, 1.5), o: rnd(0.04, 0.14) });
+      }
+    }
+
+    for (const d of drops) {
+      d.update();
+      drawTrail(d);
+      drawDrop(d);
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  tick();
+})();
+
+// ── Start ──
+init();
+scrollToBottom();
+</script>
+</body>
+</html>

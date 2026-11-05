@@ -2,6 +2,7 @@ import WebSocket from 'ws';
 globalThis.WebSocket = WebSocket;
 
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
@@ -15,6 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
@@ -913,7 +915,7 @@ app.get('/api/health', (req, res) => {
 // Disable ETags globally so browsers can't 304 on stale cached copies
 app.disable('etag');
 
-// Explicit route for index.html — reads fresh each time, full anti-cache headers
+// Explicit route for index.html — no-cache so updates are immediate
 app.get('/', (req, res) => {
   const htmlPath = resolve(__dirname, '../private-space/index.html');
   res.set({
@@ -925,17 +927,33 @@ app.get('/', (req, res) => {
   res.sendFile(htmlPath);
 });
 
+// Service worker must be at root scope with correct MIME type
+app.get('/ib-sw.js', (req, res) => {
+  res.set({
+    'Content-Type': 'application/javascript',
+    'Cache-Control': 'no-store',
+    'Service-Worker-Allowed': '/',
+  });
+  res.sendFile(resolve(__dirname, '../private-space/ib-sw.js'));
+});
+
 // Version endpoint for debugging
 app.get('/api/version', (req, res) => {
   res.json({ version: Date.now(), node: process.version });
 });
 
-// Static files (CSS/JS/images) — also no-cache to be safe
+// Static files — PWA assets can cache, HTML must not
 app.use(express.static(resolve(__dirname, '../private-space'), {
   etag: false,
   lastModified: false,
-  setHeaders: (res) => {
-    res.set('Cache-Control', 'no-store');
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.set('Cache-Control', 'no-store');
+    } else if (path.endsWith('.png') || path.endsWith('.webmanifest')) {
+      res.set('Cache-Control', 'public, max-age=86400');
+    } else {
+      res.set('Cache-Control', 'no-store');
+    }
   },
 }));
 
