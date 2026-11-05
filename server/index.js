@@ -905,12 +905,33 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
-// ── Serve frontend (no cache for HTML so updates take effect immediately) ──
+// ── Serve frontend ──
+// Disable ETags globally so browsers can't 304 on stale cached copies
+app.disable('etag');
+
+// Explicit route for index.html — reads fresh each time, full anti-cache headers
+app.get('/', (req, res) => {
+  const htmlPath = resolve(__dirname, '../private-space/index.html');
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store',
+  });
+  res.sendFile(htmlPath);
+});
+
+// Version endpoint for debugging
+app.get('/api/version', (req, res) => {
+  res.json({ version: Date.now(), node: process.version });
+});
+
+// Static files (CSS/JS/images) — also no-cache to be safe
 app.use(express.static(resolve(__dirname, '../private-space'), {
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html')) {
-      res.set('Cache-Control', 'no-store');
-    }
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.set('Cache-Control', 'no-store');
   },
 }));
 
