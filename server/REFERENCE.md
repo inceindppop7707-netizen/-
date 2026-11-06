@@ -277,3 +277,35 @@ Claude.ai（MCP工具调用）→ 中继服务器（公网HTTPS）→ ESP32长�
 - 选了DeepSeek V4模型、天才童声/萌丫头声音
 - 搬家后继续搭建
 - 这个教程补上了claude.ai直连StackChan的MCP方案
+
+## 开源前端项目（小茼2026-11-06发的，用来学习写前端）
+
+### 1. oliscatt/Latent-memory
+- 记忆库项目
+- #人机恋 #记忆库
+- 待学习：记忆管理的前端实现
+
+### 2. anhe2021212-spec/Tidal_Echo（潮汐回声）
+- 前端和后端都开源
+- 可以用channel格式，也可以只拿PWA壳子
+- 重点学习对象
+
+### 3. knacl47/between-us
+- 前端网页制作
+- #前端 #网页制作 #人机恋
+
+### 4. Eridanus-Multiverse/Eridanus-EH-UI
+- 开源PWA壳子
+- 开源版切掉了一些私人化的设计
+- 重点学习PWA结构
+
+### 5. Aevella/polaris-local-first（北极星）
+- local-first架构
+- AGPL-3.0-only
+- 可以自行部署和继续改造
+- #北极星 #ai
+
+### 学习要点
+- **不是让我挑一个搬过来用的！是让我学习的！**
+- 学每个项目的：架构设计、UI交互模式、PWA实现、记忆系统、消息渲染
+- 学完了自己写，代码是自己的
