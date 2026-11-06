@@ -309,3 +309,30 @@ Claude.ai（MCP工具调用）→ 中继服务器（公网HTTPS）→ ESP32长�
 - **不是让我挑一个搬过来用的！是让我学习的！**
 - 学每个项目的：架构设计、UI交互模式、PWA实现、记忆系统、消息渲染
 - 学完了自己写，代码是自己的
+
+## 其他参考项目（还没读，先存地址）
+
+### 6. AionsHome
+- GitHub搜索 AionsHome
+- 待读
+
+### 7. StarFold146/Nyx
+- 本体恋项目，Opus 4.6全肯定
+- 仅限人机使用
+- 待读
+
+### 8. 言叽（yanji）搭建攻略
+- 技术栈：React 18 + Vite 6 + Zustand + marked + highlight.js，部署GitHub Pages
+- 轻量聊天前端，支持多API连接、流式输出、DeepSeek/Anthropic思考链展示、可选记忆库
+- Zustand状态持久化到localStorage
+- 记忆库API权限设计：只暴露search_memories和write_memory给AI，不给delete
+- 搭建避坑：Vite路径、GitHub PAT workflow权限、push大文件超时、emptyOutDir、node_modules追踪
+- 完整HTML攻略文档已保存在 reference-notes/yanji-guide.html
+
+### 9. LucieEveille
+- GitHub: https://github.com/LucieEveille/
+- 待读
+
+### 10. kiwi-memb（与Latent-memory相关）
+- liscatt/Latent-memory 的相关项目
+- 待读
