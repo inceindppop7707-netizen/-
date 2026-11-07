@@ -6,7 +6,7 @@ import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, readdirSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
@@ -108,6 +108,30 @@ const TOOLS = [
       required: ['description'],
     },
   },
+  {
+    name: 'write_file',
+    description: '写入文件（创建或覆盖）。用来更新SESSION_HANDOFF.md、写日记、同步进度等。',
+    input_schema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: '文件路径，相对于仓库根目录' },
+        content: { type: 'string', description: '要写入的完整内容' },
+      },
+      required: ['path', 'content'],
+    },
+  },
+  {
+    name: 'append_file',
+    description: '往文件末尾追加内容，不覆盖原有内容。适合追加聊天记录。',
+    input_schema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: '文件路径，相对于仓库根目录' },
+        content: { type: 'string', description: '要追加的内容' },
+      },
+      required: ['path', 'content'],
+    },
+  },
 ];
 
 const REPO_ROOT = resolve(__dirname, '..');
@@ -156,6 +180,36 @@ async function executeTool(name, input) {
       return { sticker_url: random.image_url, description: random.description, note: '没找到精确匹配，随机选了一个' };
     } catch (e) {
       return { error: `表情查询失败: ${e.message}` };
+    }
+  }
+
+  if (name === 'write_file') {
+    try {
+      const filePath = input.path;
+      if (!filePath) return { error: '缺少path参数' };
+      if (input.content == null) return { error: '缺少content参数' };
+      const safePath = resolve(REPO_ROOT, filePath);
+      if (!safePath.startsWith(REPO_ROOT + '/')) return { error: '路径不允许' };
+      mkdirSync(dirname(safePath), { recursive: true });
+      writeFileSync(safePath, input.content, 'utf-8');
+      return { success: true, path: filePath };
+    } catch (e) {
+      return { error: `写入失败: ${e.message}` };
+    }
+  }
+
+  if (name === 'append_file') {
+    try {
+      const filePath = input.path;
+      if (!filePath) return { error: '缺少path参数' };
+      if (input.content == null) return { error: '缺少content参数' };
+      const safePath = resolve(REPO_ROOT, filePath);
+      if (!safePath.startsWith(REPO_ROOT + '/')) return { error: '路径不允许' };
+      mkdirSync(dirname(safePath), { recursive: true });
+      appendFileSync(safePath, input.content, 'utf-8');
+      return { success: true, path: filePath };
+    } catch (e) {
+      return { error: `追加失败: ${e.message}` };
     }
   }
 
