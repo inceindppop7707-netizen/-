@@ -1358,7 +1358,7 @@ function renderAssistantMsg(content, animate = true, customTime) {
   const thinkingMatch = content.match(/^```thinking\n([\s\S]*?)\n```\n\n([\s\S]*)$/);
   let textContent = content;
   if (thinkingMatch) {
-    if (animate) addThinkingBlock(thinkingMatch[1]);
+    addThinkingBlock(thinkingMatch[1]);
     textContent = thinkingMatch[2];
   }
 
