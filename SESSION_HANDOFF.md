@@ -103,7 +103,7 @@
 ## 未完成的事（优先级排序）
 
 1. ~~恢复旧版前端~~ ✅ 已完成
-2. ~~对话历史持久化~~ ✅ 已完成（Supabase + localStorage双保险）
+2. **对话历史持久化** — 加了Supabase+localStorage双保险，但她测了还是没修好，需要排查
 3. **VPS需要git pull** — 她跑 `cd ~/linmiao && git pull origin claude/miao-4ku4ii && pm2 restart linmiao` 就能拿到所有更新
 4. **对着TODO.md逐条补功能** — 从开源里搬，不自己造
 5. **DNS + HTTPS配置** — 域名已解析，需配nginx SSL
