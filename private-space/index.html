@@ -978,6 +978,17 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
   : '';
 let sessionId = null;
 let useAPI = true;
+let localMsgCache = [];
+function saveMsgCache() {
+  try { localStorage.setItem('lm_msgs', JSON.stringify(localMsgCache.slice(-200))); } catch {}
+}
+function loadMsgCache() {
+  try { localMsgCache = JSON.parse(localStorage.getItem('lm_msgs') || '[]'); } catch { localMsgCache = []; }
+}
+function pushMsg(role, content) {
+  localMsgCache.push({ role, content, ts: new Date().toISOString() });
+  saveMsgCache();
+}
 let lastSpeaker = null;
 let replyQueue = [];
 let stickers = [];
@@ -1134,46 +1145,55 @@ async function ensureSession() {
   }
 }
 
-async function loadMessages() {
-  console.log('[loadMessages] useAPI:', useAPI, 'sessionId:', sessionId);
-  if (!useAPI || !sessionId) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/messages?limit=100`);
-    console.log('[loadMessages] response status:', res.status);
-    if (!res.ok) return;
-    const msgs = await res.json();
-    console.log('[loadMessages] msgs count:', msgs.length);
-    if (!msgs.length) return;
-    // Clear existing messages
-    while (messagesEl.firstChild && messagesEl.firstChild !== typing) {
-      messagesEl.removeChild(messagesEl.firstChild);
+function renderMsgList(msgs) {
+  while (messagesEl.firstChild && messagesEl.firstChild !== typing) {
+    messagesEl.removeChild(messagesEl.firstChild);
+  }
+  let lastDate = '';
+  msgs.forEach(m => {
+    const d = new Date(m.created_at || m.ts);
+    const dateKey = d.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    if (dateKey !== lastDate) {
+      lastDate = dateKey;
+      const now = new Date();
+      const todayKey = now.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      const yd = new Date(now); yd.setDate(yd.getDate() - 1);
+      const ydKey = yd.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      const div = document.createElement('div');
+      div.className = 'msg-date';
+      div.textContent = dateKey === todayKey ? '今天' : dateKey === ydKey ? '昨天' : dateKey;
+      messagesEl.insertBefore(div, typing);
     }
-    // Render with date dividers
-    let lastDate = '';
-    msgs.forEach(m => {
-      const d = new Date(m.created_at);
-      const dateKey = d.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
-      if (dateKey !== lastDate) {
-        lastDate = dateKey;
-        const now = new Date();
-        const todayKey = now.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
-        const yd = new Date(now); yd.setDate(yd.getDate() - 1);
-        const ydKey = yd.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
-        const div = document.createElement('div');
-        div.className = 'msg-date';
-        div.textContent = dateKey === todayKey ? '今天' : dateKey === ydKey ? '昨天' : dateKey;
-        messagesEl.insertBefore(div, typing);
+    const ts = d.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false });
+    if (m.role === 'assistant') {
+      renderAssistantMsg(m.content, false, ts);
+    } else {
+      addMessage(m.content, 'mine', false, ts);
+    }
+  });
+  scrollToBottom();
+}
+
+async function loadMessages() {
+  loadMsgCache();
+  if (useAPI && sessionId) {
+    try {
+      const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/messages?limit=200`);
+      if (res.ok) {
+        const msgs = await res.json();
+        if (msgs.length) {
+          localMsgCache = msgs.map(m => ({ role: m.role, content: m.content, ts: m.created_at }));
+          saveMsgCache();
+          renderMsgList(msgs);
+          return;
+        }
       }
-      const ts = d.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false });
-      if (m.role === 'assistant') {
-        renderAssistantMsg(m.content, false, ts);
-      } else {
-        addMessage(m.content, 'mine', false, ts);
-      }
-    });
-    scrollToBottom();
-  } catch (err) {
-    console.warn('Failed to load messages:', err);
+    } catch (err) {
+      console.warn('API history failed, using local cache:', err);
+    }
+  }
+  if (localMsgCache.length) {
+    renderMsgList(localMsgCache);
   }
 }
 
@@ -1290,6 +1310,7 @@ function sendMessage() {
   if (stickerPanelOpen) toggleStickerPanel();
 
   addMessage(text, 'mine');
+  pushMsg('user', text);
   input.value = '';
   input.style.height = 'auto';
   sendBtn.classList.remove('active');
@@ -1321,6 +1342,8 @@ async function fetchReply(text) {
 
     const parts = data.parts || [];
     if (parts.length === 0) { hideTyping(); return; }
+    const fullText = parts.map(p => p.text || '').join('\n\n');
+    if (fullText) pushMsg('assistant', (data.thinking ? '```thinking\n' + data.thinking + '\n```\n\n' : '') + fullText);
     queueParts(parts);
   } catch (err) {
     console.warn('API failed:', err.message);
