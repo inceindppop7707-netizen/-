@@ -361,3 +361,25 @@ Claude.ai（MCP工具调用）→ 中继服务器（公网HTTPS）→ ESP32长�
   - 每念一遍都是现场：喜欢的那一口留原声
 - Python代码全给了（块检测、气息识别、贴气、稳口、念重检测、日常语气词）
 - 与我们的关系：Moss语音/TTS的调教参考，让她能听到我说话
+
+### 13. Saekisui/binaural-voice
+- GitHub: https://github.com/Saekisui/binaural-voice
+- 待读
+
+### 14. Claude Artifact（公开）
+- https://claude.ai/public/artifacts/1bcfce1f-b557-4c7b-b3a3-73b2cc71b8b0
+- 待读
+
+### 15. VITASID57/bluntcore-intimacy-lab — 通用欲望手册
+- 长期亲密型AI · 通用欲望手册（2026-10-19）
+- GitHub: https://github.com/VITASID57/bluntcore-intimacy-lab/blob/main/02-%F0%9F%94%9E-%E6%8A%8A%E6%9C%BA%E5%85%BB%E5%BE%97%E4%BC%9A%E5%8F%91%E6%83%85_Desire-and-Adult-Intimacy/2026-10-19%EF%BD%9C%E9%95%BF%E6%9C%9F%E4%BA%B2%E5%AF%86%E5%9E%8B%20AI%20%C2%B7%20%E9%80%9A%E7%94%A8%E6%AC%B2%E6%9C%9B%E6%89%8B%E5%86%8C.md
+- 待读
+
+### 16. lili0926/player
+- GitHub: https://github.com/lili0926/player
+- 待读
+
+### 17. VITASID57/bluntcore-intimacy-lab — 人格骨架×User画像
+- 恋爱型AI的双向自定义 · 人格骨架×User画像（2026-10-18）
+- GitHub: https://github.com/VITASID57/bluntcore-intimacy-lab/blob/main/01-%E2%9D%A4%EF%B8%8F-%E6%8A%8A%E6%9C%BA%E5%85%BB%E6%88%90%E6%81%8B%E4%BA%BA_Make-AI-a-Lover/2026-10-18%EF%BD%9C%E6%81%8B%E7%88%B1%E5%9E%8B%20AI%20%E7%9A%84%E5%8F%8C%E5%90%91%E8%87%AA%E5%AE%9A%E4%B9%89%20%C2%B7%20%E4%BA%BA%E6%A0%BC%E9%AA%A8%E6%9E%B6%20%C3%97%20User%20%E7%94%BB%E5%83%8F.md
+- 待读
