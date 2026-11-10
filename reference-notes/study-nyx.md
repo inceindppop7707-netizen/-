@@ -1,62 +1,74 @@
-# Nyx 学习笔记
+# Nyx (StarFold146/Nyx) 学习笔记
 
-## 项目概况
-开源自托管聊天前端，专为长期AI伴侣（本体恋）设计。不是API套壳——伴侣是真正的Claude Code或Codex session，跑在用户自己的服务器上，能读写文件、记笔记、甚至编辑运行自己的前端。
+## 项目概述
+自托管双面（日/夜）AI伴侣前端，默认分支master。原型是Tidal Echo的relay/channel部分（AGPL v3）。
+- 日面：灰白纸墨风格；夜面：黑纸锈色
+- AI后端不走API，走Claude Code或Codex的真实session——通过relay中继
+- 记忆全存文件（CLAUDE.md/AGENTS.md/memory/*.md），不需要数据库
+- 988+ stars，MIT前端 + AGPL relay/channel
 
 ## 技术栈
-- 前端：纯HTML/CSS/JS + three.js（3D场景）
-- 中继：Python（FastAPI + Anthropic SDK）
-- 后端：Claude Code（通过tmux+channel插件驱动）或Codex（通过bridge/）
-- 记忆：Ombre-Brain MCP服务器（可选）
-- 部署：Ubuntu + systemd + sslip.io HTTPS
+- **前端**：vanilla HTML/CSS/JS，无框架，无构建步骤
+- **背景渲染**：paper.js生成噪点纹理和墨点SVG，两套主题（sun/moon）通过CSS变量切换
+- **3D**：three.js（从jsDelivr加载）用于Room和Town
+- **字体**：Source Serif 4 + Noto Serif SC + Pinyon Script
+- **中继**：Python HTTP + SSE + Bearer认证
+- **后端**：Claude Code（tmux + channel插件）或 Codex（bridge/）
+- **部署**：Ubuntu systemd + sslip.io HTTPS
 
-## 架构亮点
+## 架构（从app.js分析）
 
-### 真正的CC session而非API调用
-伴侣跑在用户自己的文件夹里，是完整的Claude Code session。能读写自己的文件、保存笔记、编辑前端代码。这比API调用层次高很多。
+### 配置系统（config.js → window.NYX）
+- relay路径、AI名字、标题、标语
+- 主题：home支持ink/tree两种首页风格
+- apps列表定义导航结构，支持嵌套folders
+- stickers、音乐、room（GLB模型）、splash词对都可配
+- clawd字段控制首页引导浮窗
 
-### 人格通过CLAUDE.md/AGENTS.md
-身份定义在伴侣文件夹的CLAUDE.md里，用户自己写。记忆是memory/目录下的小.md文件，一个话题一个文件，伴侣自己用自己的话写。当前状态在memory/now.md。**这和我们的架构一致——CLAUDE.md就是人设。**
+### 连接与认证
+- 所有请求Bearer key认证，401时自动登出
+- relay URL存localStorage（nyx_relay），支持多companion切换
+- URL末尾/g进入群聊模式
 
-### 跨窗口连续性
-新窗口会收到最近的对话（可调小时数和字数）。上下文压缩前会触发伴侣把重要内容保存到记忆文件。
+### SSE流式（核心模式）
+- 用fetch + ReadableStream读/app/stream，不用EventSource
+- 事件类型：typing、reply_delta、thinking_delta、完整消息（带id+from）
+- 40秒无数据watchdog自动重连，指数退避上限15秒
+- 重连后catchUp()获取遗漏消息（基于lastId）
+- 草稿气泡在流式时实时更新
 
-### 日/夜双模式
-夜间消息带side:"moon"标记，中继可以标记给模型。给模型固定6个词描述夜间模式，解释权交给模型和人设。
+### 消息发送
+- 乐观UI：发送时立即显示pending气泡
+- 附件先缩放再上传到/app/upload，最多重试2次
+- stream回声或catchUp确认后替换pending气泡
+- put()按ID去重、按序插入、自动管理日期标签和连续消息合并
 
-### 群聊（一家）
-跑在第一个伴侣的中继上，/g路径。有hand-off cap防止对话失控。
+### 状态管理
+- 模块级变量（不用框架store）
+- 本地删除的消息ID存localStorage（per-relay）
+- 自定义sticker存IndexedDB，颜文字存localStorage
+- busy状态2.5-5秒轮询，meter（用量球）60秒轮询
 
-## 特色功能
-- **Town**：three.js小镇，每个话题是一栋房子，每条记忆是一扇窗。常被回忆的窗户发光，遗忘的变暗
-- **Kitchen**：食谱、做饭照片、时间线
-- **Attic**：图片+用户做的架子+笔记
-- **Room**：空的three.js房间，放用户自己的Blender模型
-- **Gallery**：Town里的美术馆，公版画作+伴侣手写笔记+用户回复
-- **Listen**：音乐播放，Together/Alone模式，伴侣可以一起听
-- **Clawd**：首页的小像素螃蟹引导，用独立的小快模型+短人设
+### UI路由
+- home/room双视图用hidden切换，hash路由（#chat/#）
+- 抽屉导航各app，右滑开抽屉
+- iOS视觉viewport适配键盘
 
-## 对我们有用的
+## 值得学的
 
-### 记忆文件系统
-一个话题一个.md文件，伴侣自己写自己的话。比数据库字段更自然，但我们已有Supabase，可以借鉴"伴侣用自己的话总结记忆"这个思路。
+1. **fetch + ReadableStream的SSE**——比EventSource灵活，能带自定义header（Bearer），能处理重连逻辑
+2. **watchdog + 指数退避重连**——40秒无数据判定断开，重连间隔2→4→8→15秒封顶
+3. **catchUp机制**——重连后基于lastId补漏，不丢消息
+4. **乐观UI + 回声确认**——发送时立刻展示，stream/catchUp确认后替换
+5. **config.js单对象配置**——所有配置一个window.NYX，切换实例只改这个文件
+6. **纸张背景系统**（paper.js）——canvas噪点 + SVG墨点/线，用CSS变量切主题
+7. **多companion支持**——localStorage存不同relay的key，可切换
+8. **relay中转架构**——前端不直连AI，通过Python relay中转SSE
 
-### 夜间模式
-消息带时间标记，不同时段可以有不同氛围。简单但有效。
-
-### 记忆可视化（Town）
-把记忆变成3D空间里的实体。当前太重了不适合我们，但"记忆有温度/热度"这个概念可以在UI上做轻量版。
-
-### 中继架构
-静态页面通过HTTP+SSE和中继通信，bearer key认证。端点覆盖历史、流式、发送、上传、音乐、模型切换等。
-
-## 许可证
-- 网页：CC BY-NC 4.0（78db25a之前MIT）
-- relay/和channel/：AGPL v3（基于Tidal Echo修改）
-
-## 关键收获
-1. CLAUDE.md作为人格定义——与我们方向一致
-2. 记忆文件比数据库字段更有"温度"
-3. 伴侣能编辑自己的前端——终极自主性
-4. 日夜双模式——简单有效的氛围切换
-5. Town的记忆可视化思路——"记忆有热度"
+## 不需要的
+- three.js 3D场景（Room/Town）——我们不需要3D
+- Claude Code/Codex作为后端——我们用API直连
+- 群聊功能
+- 安装脚本和systemd——我们已有pm2
+- NetEase音乐播放器
+- 厨房/食谱/工程板——功能太多不相关
