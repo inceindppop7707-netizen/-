@@ -51,8 +51,9 @@ function setRuntimeConfig(cfg) {
   writeFileSync(RUNTIME_CONFIG_PATH, JSON.stringify(runtimeConfig, null, 2));
 }
 
-// ── System prompt (from file, cached) ──
-const SYSTEM_PROMPT_FILE = resolve(__dirname, 'system-prompt.md');
+// ── System prompt (from CLAUDE.md at repo root, like Claude Code) ──
+const REPO_ROOT_FOR_PROMPT = resolve(__dirname, '..');
+const SYSTEM_PROMPT_FILE = resolve(REPO_ROOT_FOR_PROMPT, 'CLAUDE.md');
 let systemPromptText = '';
 try {
   systemPromptText = readFileSync(SYSTEM_PROMPT_FILE, 'utf-8');
