@@ -1087,19 +1087,25 @@ initSplash();
 // ── Init ──
 async function init() {
   loadFieldsFromStorage();
+  loadMsgCache();
+  if (localMsgCache.length) renderMsgList(localMsgCache);
   await loadAvatar();
-  // Try to connect + load messages; retry once if first attempt fails
+  // Restore cached history even when the server is temporarily unavailable.
+  let initError = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await ensureSession();
-      if (useAPI && sessionId) {
-        await loadMessages();
-        break;
-      }
+      initError = null;
+      break;
     } catch (e) {
+      initError = e;
       console.warn('[init] attempt', attempt, 'failed:', e);
       if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
     }
+  }
+  await loadMessages();
+  if (initError) {
+    addNarrator('暂时无法连接服务器，已保留本地聊天记录。下一次发送会重新尝试连接。');
   }
   // Auto-connect if credentials were saved (restores API key/URL to backend)
   try {
@@ -1125,24 +1131,29 @@ async function init() {
 }
 
 async function ensureSession() {
-  try {
-    const res = await fetch(`${API_BASE}/api/sessions`);
-    const sessions = await res.json();
-    if (sessions.length > 0) {
-      sessionId = sessions[0].id;
-    } else {
-      const res2 = await fetch(`${API_BASE}/api/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: '默认会话' }),
-      });
-      const s = await res2.json();
-      sessionId = s.id;
-    }
-  } catch {
-    sessionId = 'default';
-    useAPI = false;
+  const res = await fetch(`${API_BASE}/api/sessions`);
+  if (!res.ok) throw new Error(`加载会话失败（HTTP ${res.status}）`);
+  const sessions = await res.json();
+  if (!Array.isArray(sessions)) throw new Error('会话列表格式不正确');
+
+  let nextSessionId;
+  if (sessions.length > 0) {
+    nextSessionId = sessions[0]?.id;
+  } else {
+    const res2 = await fetch(`${API_BASE}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '默认会话' }),
+    });
+    if (!res2.ok) throw new Error(`创建会话失败（HTTP ${res2.status}）`);
+    const s = await res2.json();
+    nextSessionId = s?.id;
   }
+  if (typeof nextSessionId !== 'string' || !nextSessionId.trim()) {
+    throw new Error('服务器未返回有效会话ID');
+  }
+  sessionId = nextSessionId;
+  useAPI = true;
 }
 
 function renderMsgList(msgs) {
@@ -1259,14 +1270,7 @@ function sendSticker(id) {
   addStickerMsg(sticker.image_url, 'mine');
   showTyping();
   // Send as [image:id] to API
-  if (useAPI) {
-    fetchReply(`[image:${id}]`);
-  } else {
-    setTimeout(() => {
-      hideTyping();
-      addMessage('可爱', 'theirs');
-    }, 1500);
-  }
+  fetchReply(`[image:${id}]`);
 }
 
 function addStickerMsg(imgUrl, side) {
@@ -1316,69 +1320,118 @@ function sendMessage() {
   sendBtn.classList.remove('active');
   showTyping();
 
-  if (useAPI) {
-    fetchReply(text);
-  } else {
-    const replies = fakeReply(text);
-    queueReplies(replies);
-  }
+  fetchReply(text);
 }
 
 async function fetchReply(text) {
   try {
+    if (!sessionId) await ensureSession();
     const res = await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, message: text }),
     });
-    if (!res.ok) throw new Error(`${res.status}`);
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.error || `HTTP ${res.status}`);
+    }
     const data = await res.json();
     if (data.sessionId) sessionId = data.sessionId;
 
-    // Handle thinking
-    if (data.thinking) {
-      addThinkingBlock(data.thinking);
-    }
-
-    const parts = data.parts || [];
+    // Parse API metadata and explicitly fenced thinking through the same path.
+    const fullText = assistantPartsToText(data.parts || []);
+    const parsedReply = splitAssistantThinking(fullText, data.thinking);
+    parsedReply.thinking.forEach(thought => addThinkingBlock(thought));
+    const parts = parseAssistantParts(parsedReply.text);
+    const cachedContent = (data.thinking ? '```thinking\n' + data.thinking + '\n```\n\n' : '') + fullText;
+    if (cachedContent) pushMsg('assistant', cachedContent);
     if (parts.length === 0) { hideTyping(); return; }
-    const fullText = parts.map(p => p.text || '').join('\n\n');
-    if (fullText) pushMsg('assistant', (data.thinking ? '```thinking\n' + data.thinking + '\n```\n\n' : '') + fullText);
     queueParts(parts);
   } catch (err) {
     console.warn('API failed:', err.message);
-    useAPI = false;
-    const replies = fakeReply(text);
-    queueReplies(replies);
+    hideTyping();
+    addNarrator('未收到有效回复：' + err.message + '。请检查网络或 API 设置后再试。');
   }
 }
 
-function renderAssistantMsg(content, animate = true, customTime) {
-  // Check for thinking block in stored content
-  const thinkingMatch = content.match(/^```thinking\n([\s\S]*?)\n```\n\n([\s\S]*)$/);
-  let textContent = content;
-  if (thinkingMatch) {
-    addThinkingBlock(thinkingMatch[1]);
-    textContent = thinkingMatch[2];
+// Display-only parsing: only explicit thinking fences and API metadata qualify.
+// Keep the original cached/database text; never infer thinking from its language.
+function splitAssistantThinking(content, structuredThinking = '') {
+  const source = typeof content === 'string' ? content : '';
+  const thinking = [];
+  const seen = new Set();
+  function remember(value) {
+    if (typeof value !== 'string') return;
+    const key = value.replace(/\r\n/g, '\n').trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    thinking.push(value);
   }
+  remember(structuredThinking);
 
-  // Parse into parts
-  const segments = textContent.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
-  segments.forEach(seg => {
-    if (seg.startsWith('*') && seg.endsWith('*')) {
-      addNarrator(seg.slice(1, -1).trim(), animate);
-    } else {
-      const stickerMatch = seg.match(/^\[image:(.+?)\]$/);
-      if (stickerMatch) {
-        const sticker = stickers.find(s => s.id === stickerMatch[1]);
-        if (sticker) {
-          addStickerMsg(sticker.image_url, 'theirs');
-        } else {
-          addMessage(seg, 'theirs', animate, customTime);
-        }
+  const opening = /(^|\r?\n)[ \t]*(`{3,})thinking[ \t]*(?:\r?\n|$)/gi;
+  let text = '';
+  let cursor = 0;
+  let match;
+  while ((match = opening.exec(source))) {
+    // Preserve the line break before the opening fence in the ordinary text.
+    text += source.slice(cursor, match.index + match[1].length);
+    const contentStart = opening.lastIndex;
+    const closing = new RegExp('`{' + match[2].length + ',}(?!`)', 'g');
+    closing.lastIndex = contentStart;
+    const end = closing.exec(source);
+    const thought = source.slice(contentStart, end ? end.index : source.length)
+      .replace(/\r?\n[ \t]*$/, '');
+    remember(thought);
+    // A clearly labelled but truncated thinking block extends to the end.
+    if (!end) {
+      cursor = source.length;
+      break;
+    }
+    cursor = end.index + end[0].length;
+    opening.lastIndex = cursor;
+  }
+  text += source.slice(cursor);
+  return { thinking, text };
+}
+
+function assistantPartsToText(parts) {
+  return parts.map(part => {
+    if (part.type === 'sticker') return `[image:${part.id}]`;
+    const text = typeof part.text === 'string' ? part.text : '';
+    return part.type === 'narrator' ? `*${text}*` : text;
+  }).join('\n\n');
+}
+
+function parseAssistantParts(text) {
+  const segments = text.split(/\r?\n(?:[ \t]*\r?\n)+/)
+    .map(segment => segment.trim()).filter(Boolean);
+  return segments.map(segment => {
+    if (segment.startsWith('*') && segment.endsWith('*')) {
+      return { type: 'narrator', text: segment.slice(1, -1).trim() };
+    }
+    const sticker = segment.match(/^\[image:(.+?)\]$/);
+    return sticker
+      ? { type: 'sticker', id: sticker[1] }
+      : { type: 'message', text: segment };
+  });
+}
+
+function renderAssistantMsg(content, animate = true, customTime) {
+  const parsedReply = splitAssistantThinking(content);
+  parsedReply.thinking.forEach(thought => addThinkingBlock(thought));
+  parseAssistantParts(parsedReply.text).forEach(part => {
+    if (part.type === 'narrator') {
+      addNarrator(part.text, animate);
+    } else if (part.type === 'sticker') {
+      const sticker = stickers.find(sticker => sticker.id === part.id);
+      if (sticker) {
+        addStickerMsg(sticker.image_url, 'theirs');
       } else {
-        addMessage(seg, 'theirs', animate, customTime);
+        addMessage(`[image:${part.id}]`, 'theirs', animate, customTime);
       }
+    } else {
+      addMessage(part.text, 'theirs', animate, customTime);
     }
   });
 }

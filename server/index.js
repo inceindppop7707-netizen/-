@@ -295,10 +295,11 @@ app.get('/api/sessions/:id/messages', async (req, res) => {
     .from('messages')
     .select('*')
     .eq('session_id', req.params.id)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data.reverse());
 });
 
 // ══════════════════════════════════════
@@ -655,8 +656,8 @@ async function compressMemory(sessionId, keepRounds) {
   const summary = completion.choices[0]?.message?.content || '';
   if (!summary) return;
 
-  // Store summary
-  await supabase.from('memories').insert({
+  // Store summary; keep original messages visible if saving fails.
+  const { error: memoryError } = await supabase.from('memories').insert({
     session_id: 'global',
     summary,
     conversation_id: sessionId,
@@ -665,13 +666,19 @@ async function compressMemory(sessionId, keepRounds) {
       compressed_at: new Date().toISOString(),
     },
   });
+  if (memoryError) {
+    throw new Error(`Memory summary insert failed: ${memoryError.message}`);
+  }
 
-  // Mark compressed messages as invisible
+  // Mark compressed messages as invisible only after the summary is saved.
   const ids = toCompress.map(m => m.id);
-  await supabase
+  const { error: hideError } = await supabase
     .from('messages')
     .update({ visible: false })
     .in('id', ids);
+  if (hideError) {
+    throw new Error(`Compressed messages update failed: ${hideError.message}`);
+  }
 }
 
 // ══════════════════════════════════════
